@@ -1,46 +1,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "FileParser.h"
 
-
-#define MEMORY_SIZE		4096
-#define MAX_LINE_LEN	200
-#define UINT32			unsigned int
-#define MEMIN_FILENAME	"memin.txt"
-#define CONF_FILENAME	"config.txt"
-#define TRUE			1
-#define FALSE			0
 
 #define ASSIGN_IF(x)	if(!strcmp(#x,var))	{ pConfig->x = value; printf("\t%s = %d\n",#x,value); }
 
 #define ASSIGN_ELIF(x)  else ASSIGN_IF(x)
 
-
-typedef struct _CONFIG{
-	UINT32 add_nr_units;
-	UINT32 mul_nr_units;
-	UINT32 div_nr_units;
-	UINT32 add_nr_reservation;
-	UINT32 mul_nr_reservation;
-	UINT32 div_nr_reservation;
-	UINT32 add_delay;
-	UINT32 mul_delay;
-	UINT32 div_delay;
-	UINT32 mem_delay;
-	UINT32 mem_nr_load_buffers;
-	UINT32 mem_nr_store_buffers;
-} CONFIG, *PCONFIG;
-
-
-typedef enum _STATUS {
-	STATUS_SUCCESS,
-	STATUS_MEMORY_FAIL,
-	STATUS_FILE_FAIL,
-	STATUS_PARSE_FAIL,
-	STATUS_STRTOL_FAIL,
-	STATUS_WRONG_NAME_FAIL,
-	STATUS_GENERAL_FAIL
-} STATUS; 
 
 
 STATUS FileParser_MeminParser(UINT32** pMemin)
@@ -175,32 +142,7 @@ STATUS FileParser_ConfigParser(PCONFIG pConfig)
 }
 
 
-int main(int argc, int** argv)
-{
 
-	UINT32* memin = NULL;
-	STATUS status = STATUS_SUCCESS;
-	int index;
-	CONFIG config = { 0 };
-	
-	status = FileParser_MeminParser(&memin);
-	printf("FileParser_MeminParser returned with status %d\n",status);
-
-	if(status)
-	{
-		getch();
-		return status;
-	}
-
-	printf("Parsing Config File\n");
-
-	status = FileParser_ConfigParser(&config);
-	printf("FileParser_ConfigParser returned with status %d\n",status);
-
-	getch();
-	free(memin);
-	return 0;
-}
 
 
 
