@@ -112,6 +112,10 @@
 				RelativePath=".\main.c"
 				>
 			</File>
+			<File
+				RelativePath=".\Queue.c"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -120,6 +124,10 @@
 			>
 			<File
 				RelativePath=".\FileParser.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Queue.h"
 				>
 			</File>
 		</Filter>

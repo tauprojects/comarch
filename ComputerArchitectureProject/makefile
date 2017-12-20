@@ -28,4 +28,3 @@ $(EXEC2): $(OBJS2)
 
 clean:
 		rm -f $(OBJS2) $(EXEC2)
-

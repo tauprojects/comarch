@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "FileParser.h"
 
 
@@ -13,13 +14,12 @@
 STATUS FileParser_MeminParser(UINT32** pMemin)
 {
 	STATUS	status = STATUS_SUCCESS;
-	UINT32*	memin = *pMemin;
+	UINT32*	memin = NULL;
 	FILE*	meminFile = NULL;
 	UINT32	memIndex = 0;
 	char	line[200];
 	UINT32	temp;
 	char*	endPtr;
-	int index;
 
 	do {
 
@@ -66,7 +66,10 @@ STATUS FileParser_MeminParser(UINT32** pMemin)
 
 			memin[memIndex++] = temp;
 		}
-
+		
+		*pMemin = memin;
+		fclose(meminFile);
+		
 	} while(FALSE);
 
 	return status;
@@ -104,7 +107,7 @@ STATUS FileParser_ConfigParser(PCONFIG pConfig)
 			if(*line == '\n')
 				continue;
 
-			ret = sscanf(line,"%s = %d",var,&value);
+			ret = sscanf(line,"%s = %u",var,&value);
 			
 			if(ret == EOF || ret != 2)
 			{

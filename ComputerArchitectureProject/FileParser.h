@@ -3,11 +3,18 @@
 
 #define MEMORY_SIZE		4096
 #define MAX_LINE_LEN	200
-#define UINT32			unsigned int
-#define MEMIN_FILENAME	"memin.txt"
-#define CONF_FILENAME	"config.txt"
+
 #define TRUE			1
 #define FALSE			0
+
+typedef unsigned int	UINT32;
+typedef int				INT32,	*PINT32;
+typedef void			VOID,	*PVOID;
+typedef UINT32			BOOL,	*PBOOL;
+
+#define MEMIN_FILENAME	"memin.txt"
+#define CONF_FILENAME	"config.txt"
+
 
 
 typedef struct _CONFIG{
@@ -33,7 +40,11 @@ typedef enum _STATUS {
 	STATUS_PARSE_FAIL,
 	STATUS_STRTOL_FAIL,
 	STATUS_WRONG_NAME_FAIL,
-	STATUS_GENERAL_FAIL
+	STATUS_GENERAL_FAIL,
+	STATUS_INVALID_ARGS,
+	STATUS_QUEUE_FULL,
+	STATUS_QUEUE_EMPTY,
+	STATUS_INVALID_QUEUE
 } STATUS; 
 
 
