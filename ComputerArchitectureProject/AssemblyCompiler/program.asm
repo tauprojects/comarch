@@ -1,0 +1,12 @@
+
+# Simple Program
+# F0-F15
+
+LD F1 1
+LD F2 2
+ADD F3 F1 F2
+SUB F4 F2 F3
+MULT F5 F3 F4
+DIV F6 F4 F5
+ST F6 3
+HALT
