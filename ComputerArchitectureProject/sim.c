@@ -27,7 +27,8 @@ FILE *fp_memin, *fp_memout, *fp_regout, *fp_trace, *fp_count;
 
 
 //Main function
-int main(int argc, char *argv[]) {
+
+int main2(int argc, char *argv[]) {
 	//Variables declarations
 	int i, last;
 
@@ -311,6 +312,7 @@ int logicalLeftShift(int x, int n) {
 int sb(int x, int bit) {
 	return (x >> bit) & 1;
 }
+
 
 // extract multiple bits
 int sbs(int x, int msb, int lsb) {

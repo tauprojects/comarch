@@ -193,13 +193,13 @@ VOID Queue_Print(PQUEUE pQueue)
 
 		while(cur)
 		{
-			printf("\t%d. (%d, %d)\n",index,cur->data1,cur->data2);
+			printf("\t%d. (%d, %08x)\n",index,cur->data1,cur->data2);
 			index++;
 			cur = cur->next;
 		}
 		printf("Size: %d",pQueue->size);
-		printf("\nHead: (%d, %d)\n",pQueue->head->data1,pQueue->head->data2);
-		printf("Tail: (%d, %d)\n",pQueue->tail->data1,pQueue->tail->data2);
+		printf("\nHead: (%d, %08x)\n",pQueue->head->data1,pQueue->head->data2);
+		printf("Tail: (%d, %08x)\n",pQueue->tail->data1,pQueue->tail->data2);
 
 	} while(FALSE);
 }

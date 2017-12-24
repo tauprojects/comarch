@@ -1,1 +1,5 @@
 ComputerArchitectureProject/Release/*
+x64/*
+ComputerArchitectureProject/Debug/*
+ComputerArchitectureProject/x64/*
+.vs/*

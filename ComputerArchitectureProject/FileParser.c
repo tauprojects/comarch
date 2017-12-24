@@ -11,10 +11,9 @@
 
 
 
-STATUS FileParser_MeminParser(UINT32** pMemin)
+STATUS FileParser_MeminParser(UINT32* memin)
 {
 	STATUS	status = STATUS_SUCCESS;
-	UINT32*	memin = NULL;
 	FILE*	meminFile = NULL;
 	UINT32	memIndex = 0;
 	char	line[200];
@@ -23,6 +22,12 @@ STATUS FileParser_MeminParser(UINT32** pMemin)
 
 	do {
 
+		if(!memin)
+		{
+			status = STATUS_INVALID_ARGS;
+			break;
+		}
+		
 		meminFile = fopen(MEMIN_FILENAME,"r");
 
 		if(!meminFile)
@@ -30,23 +35,15 @@ STATUS FileParser_MeminParser(UINT32** pMemin)
 			status = STATUS_FILE_FAIL;
 			break;
 		}
-
-		memin = calloc(MEMORY_SIZE*4,sizeof(UINT32));
-
-		if(!memin)
-		{
-			status = STATUS_MEMORY_FAIL;
-			fclose(meminFile);
-			break;
-		}
-
+		
+		memset(memin, 0, MEMORY_SIZE * sizeof(UINT32));
+		
 		while(!feof(meminFile) && memIndex < MEMORY_SIZE)
 		{
 			if(!fgets(line,MAX_LINE_LEN,meminFile))
 			{
 				status = STATUS_PARSE_FAIL;
 				fclose(meminFile);
-				free(memin);
 				break;
 			}
 
@@ -60,14 +57,12 @@ STATUS FileParser_MeminParser(UINT32** pMemin)
 			{
 				status = STATUS_STRTOL_FAIL;
 				fclose(meminFile);
-				free(memin);
 				break;
 			}
 
 			memin[memIndex++] = temp;
 		}
 		
-		*pMemin = memin;
 		fclose(meminFile);
 		
 	} while(FALSE);

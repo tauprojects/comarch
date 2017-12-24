@@ -127,7 +127,15 @@
 				>
 			</File>
 			<File
+				RelativePath=".\mainDefs.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Queue.h"
+				>
+			</File>
+			<File
+				RelativePath=".\sim.h"
 				>
 			</File>
 		</Filter>
