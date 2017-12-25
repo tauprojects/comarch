@@ -63,13 +63,14 @@ STATUS	Queue_Destroy(PQUEUE pQueue)
 	return status;
 }
 
-STATUS	Queue_Enqueue(PQUEUE pQueue, INT32 data1, INT32 data2)
+STATUS	Queue_Enqueue(PQUEUE pQueue, PInstCtx pInstCtx)
 {
 	STATUS status = STATUS_SUCCESS;
 	PNODE pNode = NULL;
+
 	do 
 	{
-		if(!pQueue)
+		if(!pQueue || !pInstCtx)
 		{
 			status = STATUS_INVALID_ARGS;
 			break;
@@ -87,9 +88,8 @@ STATUS	Queue_Enqueue(PQUEUE pQueue, INT32 data1, INT32 data2)
 			status = STATUS_MEMORY_FAIL;
 			break;
 		}
-		
-		pNode->data1 = data1;
-		pNode->data2 = data2;
+
+		pNode->pInstCtx = pInstCtx;
 		pNode->next = NULL;
 		
 		if(pQueue->size == 0)
@@ -110,13 +110,32 @@ STATUS	Queue_Enqueue(PQUEUE pQueue, INT32 data1, INT32 data2)
 	return status;
 }
 
-STATUS	Queue_Peek(PQUEUE pQueue, PINT32 pData1, PINT32 pData2)
+STATUS	Queue_IsFull(PQUEUE pQueue, PBOOL pbIsFull)
+{
+	STATUS status = STATUS_SUCCESS;
+
+	do
+	{
+		if (!pQueue)
+		{
+			status = STATUS_INVALID_ARGS;
+			break;
+		}
+		
+		*pbIsFull = (pQueue->capacity == pQueue->size);
+
+	} while (FALSE);
+
+	return status;
+}
+
+STATUS	Queue_Peek(PQUEUE pQueue, PPInstCtx ppInstCtx)
 {
 	STATUS 	status = STATUS_SUCCESS;
 	
 	do 
 	{
-		if(!pQueue || !pData1 || !pData2)
+		if(!pQueue || !ppInstCtx)
 		{
 			status = STATUS_INVALID_ARGS;
 			break;
@@ -134,22 +153,22 @@ STATUS	Queue_Peek(PQUEUE pQueue, PINT32 pData1, PINT32 pData2)
 			break;
 		}
 		
-		*pData1 = pQueue->head->data1;
-		*pData2 = pQueue->head->data2;
+		*ppInstCtx = pQueue->head->pInstCtx;
 	
 	} while(FALSE);
 	
 	return status;
 }
 
-STATUS	Queue_Dequeue(PQUEUE pQueue, PINT32 pData1, PINT32 pData2)
+//Need to free instructions from queue afterwards
+STATUS	Queue_Dequeue(PQUEUE pQueue, PPInstCtx ppInstCtx)
 {
 	STATUS 	status = STATUS_SUCCESS;
 	PNODE	next = NULL;
 	
 	do 
 	{
-		status = Queue_Peek(pQueue, pData1, pData2);
+		status = Queue_Peek(pQueue, ppInstCtx);
 		
 		if(status != STATUS_SUCCESS)
 		{
@@ -161,7 +180,6 @@ STATUS	Queue_Dequeue(PQUEUE pQueue, PINT32 pData1, PINT32 pData2)
 		
 		pQueue->head = next;
 		pQueue->size--;
-
 		
 	} while(FALSE);
 	
@@ -174,7 +192,7 @@ VOID Queue_Print(PQUEUE pQueue)
 	PNODE cur = NULL;
 
 	do
-	{
+	{ /*
 		if(!pQueue)
 		{
 			printf("[Queue]: pQueue is NULL\n");
@@ -201,5 +219,5 @@ VOID Queue_Print(PQUEUE pQueue)
 		printf("\nHead: (%d, %08x)\n",pQueue->head->data1,pQueue->head->data2);
 		printf("Tail: (%d, %08x)\n",pQueue->tail->data1,pQueue->tail->data2);
 
-	} while(FALSE);
+	*/} while(FALSE);
 }

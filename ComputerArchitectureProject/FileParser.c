@@ -5,7 +5,7 @@
 #include "FileParser.h"
 
 
-#define ASSIGN_IF(x)	if(!strcmp(#x,var))	{ pConfig->x = value; printf("\t%s = %d\n",#x,value); }
+#define ASSIGN_IF(x)	if(!strcmp(#x,var))	{ pConfig->x = value; /*printf("\t%s = %d\n",#x,value);*/ }
 
 #define ASSIGN_ELIF(x)  else ASSIGN_IF(x)
 

@@ -3,12 +3,11 @@
 
 #include "mainDefs.h"
 
-typedef struct _node 
+typedef struct _node_inst
 {
-	INT32 data1;
-	INT32 data2;
-	struct _node* next;
-	
+	PInstCtx			pInstCtx;
+	struct _node_inst*	next;
+
 } NODE, *PNODE;
 
 typedef struct _queue 
@@ -23,10 +22,11 @@ typedef struct _queue
 
 STATUS	Queue_Create	(PQUEUE* ppQueue, UINT32 capacity);
 STATUS	Queue_Destroy	(PQUEUE pQueue);
-STATUS	Queue_Enqueue	(PQUEUE pQueue, INT32 data1, INT32 data2);
-STATUS	Queue_Peek		(PQUEUE pQueue, PINT32 pData1, PINT32 pData2);
-STATUS	Queue_Dequeue	(PQUEUE pQueue, PINT32 pData1, PINT32 pData2);
+STATUS	Queue_Enqueue	(PQUEUE pQueue, PInstCtx pInstCtx);
+STATUS	Queue_Peek		(PQUEUE pQueue, PPInstCtx ppInstCtx);
+STATUS	Queue_Dequeue	(PQUEUE pQueue, PPInstCtx ppInstCtx);
 VOID 	Queue_Print		(PQUEUE pQueue);
+STATUS	Queue_IsFull	(PQUEUE pQueue, PBOOL pbIsFull);
 
 
 #endif //QUEUE_H_

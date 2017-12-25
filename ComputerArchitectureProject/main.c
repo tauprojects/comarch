@@ -36,21 +36,15 @@ PQUEUE 	pInstQ;
 
 
 
-typedef struct _InstCtx 
-{
-	UINT32	inst;
-	UINT32	opcode;
-	UINT32	DST;
-	UINT32	SRC0;
-	UINT32	SRC1;
-	UINT32	IMM;
-} InstCtx, *PInstCtx;
 
-STATUS ParseAndValidateInstruction(UINT32 inst, PInstCtx pInstCtx)
+
+STATUS ParseAndValidateCurrentPC(PInstCtx pInstCtx)
 {
 	STATUS	status = STATUS_SUCCESS;
 	UINT32	tmp = 0;
-	do 
+	UINT32	inst = mem[PC];
+
+	do
 	{
 		if (!pInstCtx)
 		{
@@ -68,30 +62,37 @@ STATUS ParseAndValidateInstruction(UINT32 inst, PInstCtx pInstCtx)
 
 		pInstCtx->IMM = ExtractBits(inst, 11, 0);
 
+		pInstCtx->pc = PC;
+
 	} while (FALSE);
 
 	return status;
 }
 
+//Need to free instructions from queue afterwards
 STATUS FetchTwoInstructions(VOID)
 {
 	STATUS status = STATUS_SUCCESS;
+	PInstCtx pCurInst = { 0 };
+	BOOL isFull = FALSE;
 
-	InstCtx cur = { 0 };
-
-	do 
+	for (int i = 0; i < 2; i++)
 	{
-		status = Queue_Enqueue(pInstQ, PC, mem[PC]);
-		if (status)
+		if (Queue_IsFull(pInstQ, &isFull))
 			break;
-		PC++;
 
-		status = Queue_Enqueue(pInstQ, PC, mem[PC]);
-		if (status)
+		pCurInst = malloc(sizeof(InstCtx));
+		if (!pCurInst)
+		{
+			status = STATUS_MEMORY_FAIL;
 			break;
-		PC++;
+		}
 
-	} while (FALSE);
+		ParseAndValidateCurrentPC(pCurInst);
+
+		printf("Fetched PC %d\n", PC);
+		PC++;
+	}
 
 	return status;
 }
@@ -101,44 +102,52 @@ int main(int argc, char** argv)
 	STATUS status = STATUS_SUCCESS;
 	int index;
 	CONFIG config = { 0 };
-	
+
 	do
 	{
-		printf("\n");
-		runCheckStatusBreak(FileParser_MeminParser, mem);
+		printf("\n--- Tomasulu Algorithm Simulator ---\n\n");
 
-		runCheckStatusBreak(FileParser_ConfigParser,&config);
-	
+		runCheckStatusBreak(FileParser_MeminParser, mem);
+		printf("Parsed memin file successfully\n");
+
+		runCheckStatusBreak(FileParser_ConfigParser, &config);
+		printf("Parsed config file successfully\n");
+
 		/****/
 		for (index = 0; index < NUM_REGS; index++)
 		{
-			F[index] = (float) index;
+			F[index] = (float)index;
 		}
 		PC = 0;
 		/*****/
-	
-	
-		status = Queue_Create(&pInstQ,INSTRUCTION_QUEUE_LEN);
+
+		runCheckStatusBreak(Queue_Create, &pInstQ, INSTRUCTION_QUEUE_LEN);
 
 		while (TRUE)
 		{
+			printf("\n** CC = %d **\n", CC);
 			status = FetchTwoInstructions();
 			if (status != STATUS_SUCCESS && status != STATUS_QUEUE_FULL)
 			{
-				printf("[FetchTwoInstructions] returned with status %d [PC = %d]\n",status,PC);
+				printf("[FetchTwoInstructions] returned with status %d [PC = %d]\n", status, PC);
 				break;
 			}
 
-			
+			if (PC == 16)
+				break;
+
+			CC++;
+			Sleep(100);	//to show progress in cmd
 		}
-		
 
 
-		status = Queue_Destroy(pInstQ);
 
-	} while(FALSE);
+		Queue_Destroy(pInstQ);
 
-	
-	
+	} while (FALSE);
+
+	printf("\npress any key to exit...\n");
+	getchar();
+
 	return 0;
 }

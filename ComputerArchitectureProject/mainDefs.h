@@ -26,8 +26,27 @@ typedef enum _STATUS {
 	STATUS_INVALID_INSTRUCTION
 } STATUS; 
 
+typedef struct _InstCtx
+{
+	UINT32	inst;
+	UINT32	pc;
+	UINT32	opcode;
+	UINT32	DST;
+	UINT32	SRC0;
+	UINT32	SRC1;
+	UINT32	IMM;
+
+	UINT32	tag;
+	UINT32	cycleIssued;
+	UINT32	cycleExecutionStart;
+	UINT32	cycleExecutionEnd;
+	INT32	cycleWriteCDB;
+} InstCtx, *PInstCtx, **PPInstCtx;
+
 #define MEMIN_FILENAME			"memin.txt"
 #define CONF_FILENAME			"config.txt"
 #define INSTRUCTION_QUEUE_LEN	16
+
+#define Hex2Float(x)			*((float*)&x);
 
 #endif //MAINDEFS_H_
