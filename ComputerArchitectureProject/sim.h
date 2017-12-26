@@ -30,8 +30,6 @@
 #define INVALID_ARG "Invalid Argument"
 #define ERR_MSG_OPEN_FILE "Error While Opening File: "
 
-#define ExtractBits(x,msb,lsb)	(msb == 31 && lsb == 0) ? x : ((x >> lsb) & ((1 << (msb - lsb + 1)) - 1));
-
 /////////////////////////
 //Function Declarations//
 /////////////////////////

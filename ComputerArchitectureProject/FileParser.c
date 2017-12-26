@@ -2,14 +2,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 #include "FileParser.h"
 
 
-#define ASSIGN_IF(x)	if(!strcmp(#x,var))	{ pConfig->x = value; /*printf("\t%s = %d\n",#x,value);*/ }
+#define ASSIGN_IF(x)	if(!strcmp(#x,var))	{ pConfig->x = value; printf("\t%s = %d\n",#x,value); }
 
 #define ASSIGN_ELIF(x)  else ASSIGN_IF(x)
 
+static VOID FileParser_GetLine(FILE* file, PCHAR line)
+{
+	char	ch;
+	int		chInd = 0;
 
+	while ((ch = fgetc(file)) != EOF)
+	{
+		line[chInd++] = ch;
+		if (ch == '\n')
+			break;
+	}
+	line[chInd - 1] = '\0';
+}
 
 STATUS FileParser_MeminParser(UINT32* memin)
 {
@@ -17,6 +30,7 @@ STATUS FileParser_MeminParser(UINT32* memin)
 	FILE*	meminFile = NULL;
 	UINT32	memIndex = 0;
 	char	line[200];
+
 	UINT32	temp;
 	char*	endPtr;
 
@@ -32,6 +46,7 @@ STATUS FileParser_MeminParser(UINT32* memin)
 
 		if(!meminFile)
 		{
+			printf("[fopen] failed with errno = %d", errno);
 			status = STATUS_FILE_FAIL;
 			break;
 		}
@@ -40,27 +55,22 @@ STATUS FileParser_MeminParser(UINT32* memin)
 		
 		while(!feof(meminFile) && memIndex < MEMORY_SIZE)
 		{
-			if(!fgets(line,MAX_LINE_LEN,meminFile))
+			FileParser_GetLine(meminFile, line);
+
+			if (line[0] && line[0] != '\n')
 			{
-				status = STATUS_PARSE_FAIL;
-				fclose(meminFile);
-				break;
+
+				temp = (UINT32)strtol(line, &endPtr, 16);
+				if (endPtr == line || *endPtr != '\0')
+				{
+					status = STATUS_STRTOL_FAIL;
+					fclose(meminFile);
+					break;
+				}
+
+				memin[memIndex] = temp;
 			}
-
-			if(*line == '\n')
-				continue;
-
-			line[strlen(line)-1] = '\0';
-			
-			temp = (UINT32)strtol(line,&endPtr,16);
-			if(endPtr == line || *endPtr != '\0')
-			{
-				status = STATUS_STRTOL_FAIL;
-				fclose(meminFile);
-				break;
-			}
-
-			memin[memIndex++] = temp;
+			memIndex++;
 		}
 		
 		fclose(meminFile);
@@ -92,12 +102,7 @@ STATUS FileParser_ConfigParser(PCONFIG pConfig)
 
 		while(!feof(configFile))
 		{
-			if(!fgets(line,MAX_LINE_LEN,configFile))
-			{
-				status = STATUS_PARSE_FAIL;
-				fclose(configFile);	
-				break;
-			}
+			FileParser_GetLine(configFile, line);
 
 			if(*line == '\n')
 				continue;

@@ -92,12 +92,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="FileParser.c" />
+    <ClCompile Include="Instructions.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="Queue.c" />
     <ClCompile Include="sim.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileParser.h" />
+    <ClInclude Include="Instructions.h" />
     <ClInclude Include="mainDefs.h" />
     <ClInclude Include="Queue.h" />
     <ClInclude Include="sim.h" />

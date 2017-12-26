@@ -10,6 +10,7 @@ typedef unsigned int	UINT32, *PUINT32;
 typedef int				INT32,	*PINT32;
 typedef void			VOID,	*PVOID;
 typedef UINT32			BOOL,	*PBOOL;
+typedef char			CHAR,	*PCHAR,	**PPCHAR;
 
 typedef enum _STATUS {
 	STATUS_SUCCESS,

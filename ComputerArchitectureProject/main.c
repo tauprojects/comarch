@@ -3,109 +3,55 @@
 #include "FileParser.h"
 #include "Queue.h"
 #include "sim.h"
+#include "Instructions.h"
 
-#define	runCheckStatusBreak(func,...)									\
-	status = func(__VA_ARGS__);											\
-	if(status)															\
-	{																	\
-		printf("Function [%s] returned with status %d\n",#func,status);	\
-		break;															\
-	}																	\
-
-
-
-#define ExtractBitsAndCheck(msb,lsb,low,high,dst)						\
-	tmp = ExtractBits(inst, msb, lsb);									\
-	if (tmp >= low && tmp <= high)										\
-	{																	\
-		dst = tmp;														\
-	}																	\
-	else																\
-	{																	\
-		status = STATUS_INVALID_INSTRUCTION;							\
-		break;															\
-	}
-
-
-/** Tomsulo Global Context **/
+/************************************************************************/
+/*                  Tomsulo Global Context								*/
+/************************************************************************/ 
 float 	F[NUM_REGS];
 UINT32 	mem[MEMORY_SIZE];
 UINT32	PC;
 UINT32	CC;
 PQUEUE 	pInstQ;
+PCHAR	gOpcodeNames[TYPE_CNT] = { "LD","ST","ADD","SUB","MULT","DIV","HALT" };
+
+/************************************************************************/
+/*                  MACROS												*/
+/************************************************************************/
 
 
-
-
-
-STATUS ParseAndValidateCurrentPC(PInstCtx pInstCtx)
-{
-	STATUS	status = STATUS_SUCCESS;
-	UINT32	tmp = 0;
-	UINT32	inst = mem[PC];
-
-	do
-	{
-		if (!pInstCtx)
-		{
-			status = STATUS_INVALID_ARGS;
-			break;
-		}
-
-		ExtractBitsAndCheck(27, 24, 0, 6, pInstCtx->opcode);
-
-		ExtractBitsAndCheck(23, 20, 0, 15, pInstCtx->DST);
-
-		ExtractBitsAndCheck(19, 16, 0, 15, pInstCtx->SRC0);
-
-		ExtractBitsAndCheck(15, 12, 0, 15, pInstCtx->SRC1);
-
-		pInstCtx->IMM = ExtractBits(inst, 11, 0);
-
-		pInstCtx->pc = PC;
-
-	} while (FALSE);
-
-	return status;
+/**
+ * This macro runs a function with its argument, and then checks if the 
+ * returned status is SUCCESS (status != 0).
+ * Requires an initialized STATUS status variable
+ */
+#define	runCheckStatusBreak(func,...)										\
+{																			\
+	status = func(__VA_ARGS__);												\
+	if (status)																\
+	{																		\
+		printf("Function [%s] returned with status %d\n", #func, status);	\
+		break;																\
+	}																		\
 }
 
-//Need to free instructions from queue afterwards
-STATUS FetchTwoInstructions(VOID)
-{
-	STATUS status = STATUS_SUCCESS;
-	PInstCtx pCurInst = { 0 };
-	BOOL isFull = FALSE;
 
-	for (int i = 0; i < 2; i++)
-	{
-		if (Queue_IsFull(pInstQ, &isFull))
-			break;
 
-		pCurInst = malloc(sizeof(InstCtx));
-		if (!pCurInst)
-		{
-			status = STATUS_MEMORY_FAIL;
-			break;
-		}
-
-		ParseAndValidateCurrentPC(pCurInst);
-
-		printf("Fetched PC %d\n", PC);
-		PC++;
-	}
-
-	return status;
-}
+/************************************************************************/
+/*                  MAIN       									        */
+/************************************************************************/
 
 int main(int argc, char** argv)
 {
-	STATUS status = STATUS_SUCCESS;
-	int index;
-	CONFIG config = { 0 };
+	STATUS		status = STATUS_SUCCESS;
+	int			index;
+	CONFIG		config = { 0 };
+	PInstCtx	currentInst = NULL;
+	PCHAR		opcode = NULL;
 
 	do
 	{
-		printf("\n--- Tomasulu Algorithm Simulator ---\n\n");
+		printf("\n--- Tomsulo Algorithm Simulator ---\n\n");
 
 		runCheckStatusBreak(FileParser_MeminParser, mem);
 		printf("Parsed memin file successfully\n");
@@ -113,27 +59,31 @@ int main(int argc, char** argv)
 		runCheckStatusBreak(FileParser_ConfigParser, &config);
 		printf("Parsed config file successfully\n");
 
-		/****/
 		for (index = 0; index < NUM_REGS; index++)
 		{
 			F[index] = (float)index;
 		}
 		PC = 0;
-		/*****/
 
 		runCheckStatusBreak(Queue_Create, &pInstQ, INSTRUCTION_QUEUE_LEN);
 
 		while (TRUE)
 		{
 			printf("\n** CC = %d **\n", CC);
-			status = FetchTwoInstructions();
+
+			status = Instructions_FetchTwoInstructions(pInstQ, mem, &PC);
 			if (status != STATUS_SUCCESS && status != STATUS_QUEUE_FULL)
 			{
-				printf("[FetchTwoInstructions] returned with status %d [PC = %d]\n", status, PC);
+				printf("[Instructions_FetchTwoInstructions] returned with status %d [PC = %d]\n", status, PC);
 				break;
 			}
 
-			if (PC == 16)
+			runCheckStatusBreak(Queue_Dequeue, pInstQ, &currentInst);
+
+			printf("Dequeued instruction type %d (PC = %d)\n", currentInst->opcode,currentInst->pc);
+
+
+			if (PC == 20)
 				break;
 
 			CC++;
