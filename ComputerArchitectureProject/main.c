@@ -29,6 +29,8 @@ pRsvStation		LoadBuffers;
 pRsvStation		StoreBuffers;
 
 pFunctionUnit	memoryUnit;
+
+_CDB			CDBs[4];
 /************************************************************************/
 /*                  MACROS												*/
 /************************************************************************/
@@ -243,8 +245,12 @@ int main(int argc, char** argv)
 							//at this point can dequeue from isntruction queue
 							Queue_Dequeue(pInstQ, &currentInst);
 
+							currentInst->cycleIssued = CC;
+
+							currentInst->tag = &currentRsvStations[index];
+
 							// insert instruction to reservation station
-							currentRsvStations[index].pInstruction = currentInst;	printf("\t\tSetting pInstruction = %p\n", currentInst);
+							currentRsvStations[index].pInstruction = currentInst;
 							currentRsvStations[index].busy = TRUE;
 							instructionIssued = TRUE;
 
@@ -283,8 +289,31 @@ int main(int argc, char** argv)
 
 							break;
 						}
+						else  //currentRsvStations[index].busy is TRUE, there is instruction in reservation station
+						{
+							printf("\n** Station %s is BUSY\n", currentRsvStations[index].name);
+							//check the relevant CDB if there's relevant information
+							
+							pCDB CDB;
+							for (k = 0; k < 4; k++)
+							{
+								CDB = &CDBs[k];
 
-						printf("\n** Station %s is BUSY\n",	currentRsvStations[index].name);
+								if (currentRsvStations[index].Qj == CDB->tag)
+								{
+									CDB->tag = NULL;
+									currentRsvStations[index].Qj = NULL;
+									currentRsvStations[index].Vj = CDB->value;
+								}
+								else if (currentRsvStations[index].Qk == CDB->tag)
+								{
+									CDB->tag = NULL;
+									currentRsvStations[index].Qk = NULL;
+									currentRsvStations[index].Vk = CDB->value;
+								}
+							}
+							
+						}
 					}
 
 					if (instructionIssued == FALSE)
@@ -312,21 +341,34 @@ int main(int argc, char** argv)
 			//pass on every type of functional unit
 			for (j = 0; j < 3; j++)
 			{
-				breakpoint;
+				
 				FU_array = FUs[j];
 				//pass on every functional unit from the specific type
 				for (index = 0; index < FU_array->numOfFunctionalUnitsFromThisType; index++)
 				{
-					breakpoint;
+					
 					pCurrentFU = &FU_array[index];
 					if (pCurrentFU->busy == TRUE)
 					{
 						if (pCurrentFU->clockCycleCounter == pCurrentFU->delay)
 						{
-							//WRITE RESULT to CDB
+							pCurrentFU->pInstruction->cycleExecutionEnd = CC;
+							//same index as the type of the functional unit,
+							//try to write to CDB
+							if (CDBs[j].tag == NULL)	
+							{
+								//if relevant CDB is empty
 
-							pCurrentFU->clockCycleCounter = 0;
-							pCurrentFU->busy = FALSE;
+								//take tag from the instruction
+								CDBs[j].tag = pCurrentFU->pInstruction->tag;
+								CDBs[j].value = pCurrentFU->DST;
+
+								pCurrentFU->pInstruction->cycleWriteCDB = CC;
+
+								pCurrentFU->clockCycleCounter = 0;
+								pCurrentFU->busy = FALSE;
+							}
+							//if CDBs[j].tag is not NULL then just wait, don't clock cycle counter
 						}
 						else
 						{
@@ -335,66 +377,73 @@ int main(int argc, char** argv)
 					}
 					else //specific FU is empty
 					{
-						breakpoint;
 						relevantReservationStations = reservationStations[pCurrentFU->type];
 						
 						//check reservations stations from this type and take first valid instruction
-
 						for (k = 0; k < relevantReservationStations->numOfRsvStationsFromThisType; k++)
 						{
-							if (relevantReservationStations[k].busy == TRUE &&
-								!relevantReservationStations[k].Qj && !relevantReservationStations[k].Qk)
+							if (relevantReservationStations[k].busy == TRUE)
 							{
-								breakpoint;
-								//if they are both empty, namely, if values are relevant in reservation station
-								pCurrentFU->busy = TRUE;
-
-								pCurrentFU->pInstruction = relevantReservationStations[k].pInstruction;
-								relevantReservationStations[k].pInstruction = NULL;
-								breakpoint;
-
-								pCurrentFU->SRC0 = relevantReservationStations[k].Vj;
-								pCurrentFU->SRC1 = relevantReservationStations[k].Vk;
-								relevantReservationStations[k].busy = FALSE;
-								breakpoint;												////////
-								printf("\tpCurrentFU->pInstruction = %p\n", pCurrentFU->pInstruction);
-								// Do the actual calculation and save the result inside the functional unit
-								switch (pCurrentFU->pInstruction->opcode)
+								if (relevantReservationStations[k].Qj == NULL &&
+									relevantReservationStations[k].Qk == NULL)
 								{
-								case ADD:
-									breakpoint;
-									pCurrentFU->DST = pCurrentFU->SRC0 + pCurrentFU->SRC1;
-									breakpoint;
-									break;
-								case SUB:
-									breakpoint;
-									pCurrentFU->DST = pCurrentFU->SRC0 - pCurrentFU->SRC1;
-									printf("\t\tSUB happened - DST = %f\n", pCurrentFU->DST);
-									breakpoint;
-									break;
-								case MULT:
-									breakpoint;
-									pCurrentFU->DST = pCurrentFU->SRC0 * pCurrentFU->SRC1;
-									breakpoint;
-									break;
-								case DIV:
-									breakpoint;
-									pCurrentFU->DST = pCurrentFU->SRC0 / pCurrentFU->SRC1;
-									breakpoint;
-									break;
-								default:
-									printf("WRONG INSTRUCTION\n");
+
+									//if they are both empty, namely, if values are relevant in reservation station
+									pCurrentFU->busy = TRUE;
+
+									pCurrentFU->pInstruction = relevantReservationStations[k].pInstruction;
+
+									pCurrentFU->pInstruction->cycleExecutionStart = CC;
+
+									relevantReservationStations[k].pInstruction = NULL;
+
+									pCurrentFU->SRC0 = relevantReservationStations[k].Vj;
+									pCurrentFU->SRC1 = relevantReservationStations[k].Vk;
+									relevantReservationStations[k].busy = FALSE;
+									////////
+									printf("\tpCurrentFU->pInstruction = %p\n", pCurrentFU->pInstruction);
+									// Do the actual calculation and save the result inside the functional unit
+									switch (pCurrentFU->pInstruction->opcode)
+									{
+									case ADD:
+
+										pCurrentFU->DST = pCurrentFU->SRC0 + pCurrentFU->SRC1;
+
+										break;
+									case SUB:
+
+										pCurrentFU->DST = pCurrentFU->SRC0 - pCurrentFU->SRC1;
+										printf("\t\tSUB happened - DST = %f\n", pCurrentFU->DST);
+
+										break;
+									case MULT:
+
+										pCurrentFU->DST = pCurrentFU->SRC0 * pCurrentFU->SRC1;
+
+										break;
+									case DIV:
+
+										pCurrentFU->DST = pCurrentFU->SRC0 / pCurrentFU->SRC1;
+
+										break;
+									default:
+										printf("WRONG INSTRUCTION\n");
+										break;
+									}
+									////////
+
 									break;
 								}
-								breakpoint;												////////
-
-								break;
-							}
+								else //Qk or Qj waiting for result
+								{
+									//do nothing for now
+								}
+							}	
 						}
 					}
 				}
 			}
-			breakpoint;
+			
 			// Process memory unit
 
 			if (currentInst->opcode == HALT)

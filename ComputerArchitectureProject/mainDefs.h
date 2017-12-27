@@ -47,6 +47,8 @@ typedef enum _InstType
 	TYPE_CNT
 } eInstType, *peInstType;
 
+typedef struct _RsvStation		RsvStation, *pRsvStation;
+
 typedef struct _InstCtx
 {
 	UINT32	inst;
@@ -57,11 +59,12 @@ typedef struct _InstCtx
 	UINT32	SRC1;
 	UINT32	IMM;
 
-	UINT32	tag;
-	UINT32	cycleIssued;
-	UINT32	cycleExecutionStart;
-	UINT32	cycleExecutionEnd;
-	INT32	cycleWriteCDB;
+	pRsvStation	tag;
+
+	UINT32		cycleIssued;
+	UINT32		cycleExecutionStart;
+	UINT32		cycleExecutionEnd;
+	INT32		cycleWriteCDB;
 } InstCtx, *PInstCtx, **PPInstCtx;
 
 typedef enum _eFunctionOp
@@ -122,6 +125,11 @@ typedef struct _register
 
 } Register, *pResgister;
 
+typedef struct __cdb
+{
+	pRsvStation tag;
+	float		value;
 
+} _CDB, *pCDB;
 
 #endif //MAINDEFS_H_
