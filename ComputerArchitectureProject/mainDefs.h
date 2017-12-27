@@ -1,10 +1,18 @@
 #ifndef MAINDEFS_H_
 #define MAINDEFS_H_
 
+#include "safeMalloc.h"
+
 #define MEMORY_SIZE		4096
 #define MAX_LINE_LEN	200
 #define TRUE			1
 #define FALSE			0
+#define MEMIN_FILENAME			"memin.txt"
+#define CONF_FILENAME			"config.txt"
+#define INSTRUCTION_QUEUE_LEN	16
+
+#define Hex2Float(x)			*((float*)&x);	
+								
 
 typedef unsigned int	UINT32, *PUINT32;
 typedef int				INT32,	*PINT32;
@@ -27,6 +35,18 @@ typedef enum _STATUS {
 	STATUS_INVALID_INSTRUCTION
 } STATUS; 
 
+typedef enum _InstType
+{
+	LD,
+	ST,
+	ADD,
+	SUB,
+	MULT,
+	DIV,
+	HALT,
+	TYPE_CNT
+} eInstType, *peInstType;
+
 typedef struct _InstCtx
 {
 	UINT32	inst;
@@ -44,10 +64,64 @@ typedef struct _InstCtx
 	INT32	cycleWriteCDB;
 } InstCtx, *PInstCtx, **PPInstCtx;
 
-#define MEMIN_FILENAME			"memin.txt"
-#define CONF_FILENAME			"config.txt"
-#define INSTRUCTION_QUEUE_LEN	16
+typedef enum _eFunctionOp
+{
+	FUNC_LD = LD,
+	FUNC_ST = ST,
+	FUNC_ADD = ADD,
+	FUNC_MULT = MULT,
+	FUNC_DIV = DIV,
+	FUNC_CNT
+} eFunctionOp, *peFunctionOp;
 
-#define Hex2Float(x)			*((float*)&x);
+typedef struct _FunctionUnit
+{
+	UINT32			numOfFunctionalUnitsFromThisType;
+	eFunctionOp		type;
+	BOOL			busy;
+	UINT32			delay;
+
+	PInstCtx		pInstruction;
+	UINT32			clockCycleCounter;
+
+	float			SRC0;
+	float			SRC1;
+	float			DST;
+
+
+} FunctionUnit, *pFunctionUnit;
+
+typedef struct _RsvStation
+{
+	UINT32			numOfRsvStationsFromThisType;
+	eFunctionOp		type;
+	CHAR			name[10];
+	BOOL			busy;
+	PInstCtx		pInstruction;
+	float			Address;		//for store operations / memory buffer usage
+
+	//For Reservation stations ADD,MULT,DIV
+	float			Vj;
+	float			Vk;
+	struct _RsvStation*		Qj;
+	struct _RsvStation*		Qk;
+
+	//Relevant functional unit array
+
+	pFunctionUnit	functionalUnits;
+	
+} RsvStation, *pRsvStation;
+
+typedef struct _register 
+{
+	float			value;
+	BOOL			hasTag;
+
+	eFunctionOp		tagType;
+	UINT32			tagIndex;
+
+} Register, *pResgister;
+
+
 
 #endif //MAINDEFS_H_

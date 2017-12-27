@@ -96,7 +96,7 @@ STATUS Instructions_FetchTwoInstructions(PQUEUE pInstQ, PUINT32 mem, PUINT32 pPC
 
 		Queue_IsFull(pInstQ, &isFull);
 
-		pCurInst = malloc(sizeof(InstCtx));
+		pCurInst = safeMalloc(sizeof(InstCtx));
 		if (!pCurInst)
 		{
 			status = STATUS_MEMORY_FAIL;
@@ -108,14 +108,14 @@ STATUS Instructions_FetchTwoInstructions(PQUEUE pInstQ, PUINT32 mem, PUINT32 pPC
 		status = Instructions_ParseAndValidateCurrentPC(pCurInst, PC);
 		if (status)
 		{
-			free(pCurInst);
+			safeFree(pCurInst);
 			break;
 		}
 
 		status = Queue_Enqueue(pInstQ, pCurInst);
 		if (status)
 		{
-			free(pCurInst);
+			safeFree(pCurInst);
 			break;
 		}
 

@@ -95,6 +95,7 @@
     <ClCompile Include="Instructions.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="Queue.c" />
+    <ClCompile Include="safeMalloc.c" />
     <ClCompile Include="sim.c" />
   </ItemGroup>
   <ItemGroup>
@@ -102,6 +103,7 @@
     <ClInclude Include="Instructions.h" />
     <ClInclude Include="mainDefs.h" />
     <ClInclude Include="Queue.h" />
+    <ClInclude Include="safeMalloc.h" />
     <ClInclude Include="sim.h" />
   </ItemGroup>
   <ItemGroup>

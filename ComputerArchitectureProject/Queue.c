@@ -15,7 +15,7 @@ STATUS	Queue_Create(PQUEUE* ppQueue, UINT32 capacity)
 			break;
 		}
 		
-		pQueue = malloc(sizeof(QUEUE));
+		pQueue = safeMalloc(sizeof(QUEUE));
 		if(!pQueue)
 		{
 			status = STATUS_MEMORY_FAIL;
@@ -52,11 +52,11 @@ STATUS	Queue_Destroy(PQUEUE pQueue)
 		while(cur)
 		{
 			next = cur->next;
-			free(cur);
+			safeFree(cur);
 			cur = next;
 		}
 		
-		free(pQueue);
+		safeFree(pQueue);
 		
 	} while(FALSE);
 	
@@ -82,7 +82,7 @@ STATUS	Queue_Enqueue(PQUEUE pQueue, PInstCtx pInstCtx)
 			break;
 		}
 		
-		pNode = malloc(sizeof(NODE));
+		pNode = safeMalloc(sizeof(NODE));
 		if(!pNode)
 		{
 			status = STATUS_MEMORY_FAIL;
@@ -176,7 +176,7 @@ STATUS	Queue_Dequeue(PQUEUE pQueue, PPInstCtx ppInstCtx)
 		}
 		
 		next = pQueue->head->next;
-		free(pQueue->head);
+		safeFree(pQueue->head);
 		
 		pQueue->head = next;
 		pQueue->size--;
