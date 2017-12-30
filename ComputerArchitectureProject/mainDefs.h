@@ -120,16 +120,21 @@ typedef struct _register
 	float			value;
 	BOOL			hasTag;
 
-	eFunctionOp		tagType;
-	UINT32			tagIndex;
+	pRsvStation		tag;
+	UINT32			tagPC;		//to differentiate tags in the case there is the same tags
+								//from different instructions after one instruction was freed
+								//from reservation station and the same reservation station
+								//got a different instruction in the meantime
 
 } Register, *pResgister;
 
 typedef struct __cdb
 {
 	pRsvStation tag;
-	float		value;
+	UINT32		tagPC;
 
+	float		value;
+	UINT32		CCupdated;
 } _CDB, *pCDB;
 
 #endif //MAINDEFS_H_
