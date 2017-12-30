@@ -7,6 +7,7 @@
 #define MAX_LINE_LEN	200
 #define TRUE			1
 #define FALSE			0
+#define NUM_REGS		16
 #define MEMIN_FILENAME			"memin.txt"
 #define CONF_FILENAME			"config.txt"
 #define INSTRUCTION_QUEUE_LEN	16
