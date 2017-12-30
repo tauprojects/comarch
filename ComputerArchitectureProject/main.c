@@ -497,33 +497,30 @@ int main(int argc, char** argv)
 						printf("\nRsvStation %s has instruction PC=%d\n", currentRsvStations[index].name, currentRsvStations[index].pInstruction->pc);
 
 						isCPUreadyForHalt = FALSE;
-						//sanity check that the instruction in the reservation station was not
-						//issued on this CC
-						if (currentRsvStations[index].pInstruction->cycleIssued < CC)
+
+						for (k = 0; k < 4; k++)	//number of CDBs
 						{
-							for (k = 0; k < 4; k++)	//number of CDBs
+							//check the relevant CDB if there's relevant information
+
+							CDB = &CDBs[k];
+
+							if (CDB->tag != NULL)
 							{
-								//check the relevant CDB if there's relevant information
-
-								CDB = &CDBs[k];
-
-								if (CDB->tag != NULL)
+								if (currentRsvStations[index].Qj == CDB->tag)
 								{
-									if (currentRsvStations[index].Qj == CDB->tag)
-									{
-										printf("\nRsvStation %s took value Vj from CDB %d for PC=%d\n", currentRsvStations[index].name, k, currentRsvStations[index].pInstruction->pc);
-										currentRsvStations[index].Qj = NULL;
-										currentRsvStations[index].Vj = CDB->value;
-									}
-									else if (currentRsvStations[index].Qk == CDB->tag)
-									{
-										printf("\nRsvStation %s took value Vk from CDB %d for PC=%d\n", currentRsvStations[index].name, k, currentRsvStations[index].pInstruction->pc);
-										currentRsvStations[index].Qk = NULL;
-										currentRsvStations[index].Vk = CDB->value;
-									}
+									printf("\nRsvStation %s took value Vj from CDB %d for PC=%d\n", currentRsvStations[index].name, k, currentRsvStations[index].pInstruction->pc);
+									currentRsvStations[index].Qj = NULL;
+									currentRsvStations[index].Vj = CDB->value;
+								}
+								else if (currentRsvStations[index].Qk == CDB->tag)
+								{
+									printf("\nRsvStation %s took value Vk from CDB %d for PC=%d\n", currentRsvStations[index].name, k, currentRsvStations[index].pInstruction->pc);
+									currentRsvStations[index].Qk = NULL;
+									currentRsvStations[index].Vk = CDB->value;
 								}
 							}
 						}
+
 					}
 				}
 			}
