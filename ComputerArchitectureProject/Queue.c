@@ -52,6 +52,10 @@ STATUS	Queue_Destroy(PQUEUE pQueue)
 		while(cur)
 		{
 			next = cur->next;
+
+			if (cur->pInstCtx)
+				safeFree(cur->pInstCtx);
+
 			safeFree(cur);
 			cur = next;
 		}

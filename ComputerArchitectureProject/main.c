@@ -224,7 +224,11 @@ int main(int argc, char** argv)
 			
 			//if the first CC, cannot do anything yet because fetch takes full CC
 			if (CC == 0)
+			{
+				CC++;
 				continue;
+			}
+
 
 			for (j = 0; j < 2; j++)
 			{
@@ -552,7 +556,7 @@ int main(int argc, char** argv)
 			Sleep(100);	//to show progress in cmd
 		}
 
-		safeFree(AddRsvStations->functionalUnits);
+		/*safeFree(AddRsvStations->functionalUnits);
 		safeFree(AddRsvStations);
 		safeFree(MulRsvStations->functionalUnits);
 		safeFree(MulRsvStations);
@@ -560,11 +564,13 @@ int main(int argc, char** argv)
 		safeFree(DivRsvStations);
 		safeFree(LoadBuffers);
 		safeFree(StoreBuffers);
-		safeFree(memoryUnit);
+		safeFree(memoryUnit);*/
 
-		Queue_Destroy(pInstQ);
 
 	} while (FALSE);
+
+	Queue_Destroy(pInstQ);
+	cleanMemory();
 
 	printf("*** Memory Counter = %d\n", globalMemoryCounter);
 	printf("\npress any key to exit...\n");
