@@ -2,10 +2,7 @@
 #include "Queue.h"
 #include "Instructions.h"
 #include <stdlib.h>
-
-
-
-
+#include <string.h>
 
 /************************************************************************/
 /*                  MACROS												*/
@@ -56,6 +53,8 @@ STATUS Instructions_ParseAndValidateCurrentPC(PInstCtx pInstCtx,UINT32 PC)
 
 		memset(pInstCtx, 0, sizeof(InstCtx));
 
+		pInstCtx->inst = inst;
+
 		ExtractBitsAndCheck(27, 24, 0, 6, pInstCtx->opcode);
 
 		ExtractBitsAndCheck(23, 20, 0, 15, pInstCtx->DST);
@@ -77,12 +76,10 @@ STATUS Instructions_ParseAndValidateCurrentPC(PInstCtx pInstCtx,UINT32 PC)
 STATUS Instructions_FetchTwoInstructions(PQUEUE pInstQ, PUINT32 mem, PUINT32 pPC)
 {
 	STATUS		status = STATUS_SUCCESS;
-	PInstCtx	pCurInst = { 0 };
+	PInstCtx	pCurInst;
 	BOOL		isFull = FALSE;
 	UINT32		PC = 0;
 	
-
-
 	for (int i = 0; i < 2; i++)
 	{
 
@@ -104,7 +101,7 @@ STATUS Instructions_FetchTwoInstructions(PQUEUE pInstQ, PUINT32 mem, PUINT32 pPC
 		}
 
 		pCurInst->inst = mem[PC];
-
+		
 		status = Instructions_ParseAndValidateCurrentPC(pCurInst, PC);
 		if (status)
 		{

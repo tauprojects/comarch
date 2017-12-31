@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "FileParser.h"
+#include "FilesManager.h"
 #include "Queue.h"
 #include "Instructions.h"
 
@@ -34,7 +34,6 @@ _CDB			CDBs[4];
 /*                  MACROS												*/
 /************************************************************************/
 
-#define breakpoint			//printf("## BREAKPOINT: %s | %d\n",__FUNCTION__,__LINE__)
 #define funame(j)			j == 0 ? "ADD" : (j==1 ? "MULT" : (j==2 ? "DIV" : ""))
 #define opcode(j)			gOpcodeNames[j];
 
@@ -54,7 +53,7 @@ _CDB			CDBs[4];
 }
 
 VOID InitializeOneRsvStation(pRsvStation* pRsvStationsTypeArray, UINT32 nr_reservation,
-	const PCHAR name, UINT32 nr_units, eInstType type, UINT32 delay)
+	CPCHAR name, UINT32 nr_units, eInstType type, UINT32 delay)
 {
 	UINT32		i;
 	pRsvStation	RsvStationsTypeArray;
@@ -65,7 +64,7 @@ VOID InitializeOneRsvStation(pRsvStation* pRsvStationsTypeArray, UINT32 nr_reser
 	{
 		(RsvStationsTypeArray)[i].type = type;
 		RsvStationsTypeArray[i].numOfRsvStationsFromThisType = nr_reservation;
-		snprintf(RsvStationsTypeArray[i].name, 10, "%s%d", name, i + 1);
+		snprintf(RsvStationsTypeArray[i].name, 10, "%s%d", name, i);
 	}
 	reservationStations[type] = RsvStationsTypeArray;
 
@@ -88,7 +87,7 @@ VOID InitializeReservationsStations(PCONFIG pConfig)
 
 	reservationStations[SUB] = AddRsvStations;	//so SUB instructions would go to ADD rsv stations also
 
-	InitializeOneRsvStation(&MulRsvStations, pConfig->mul_nr_reservation, "MULT",
+	InitializeOneRsvStation(&MulRsvStations, pConfig->mul_nr_reservation, "MUL",
 		pConfig->mul_nr_units, MULT, pConfig->mul_delay);
 
 	InitializeOneRsvStation(&DivRsvStations, pConfig->div_nr_reservation, "DIV",
@@ -151,21 +150,16 @@ VOID CPU_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt)
 
 		printf("\n** Working on instruction <PC=%d,OPCODE=%d>\n",
 			currentInst->pc, currentInst->opcode);
-		breakpoint;
 		if (currentInst->opcode != HALT)
 		{
 			currentRsvStations = reservationStations[currentInst->opcode];
-			breakpoint;
 			numberOfRsvStations = OpcodeToNumberOfReservationStations(currentInst->opcode, pConfig);
-			breakpoint;
 			instructionIssued = FALSE;
 
 			for (index = 0; index < numberOfRsvStations; index++)
 			{
-				breakpoint;
 				if (currentRsvStations[index].busy == FALSE)
 				{
-					breakpoint;
 					//Found empty reservation station
 					//at this point can dequeue from instruction queue
 					Queue_Dequeue(pInstQ, &currentInst);
@@ -173,11 +167,12 @@ VOID CPU_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt)
 					currentInst->cycleIssued = CC;
 
 					currentInst->tag = &currentRsvStations[index];
-					breakpoint;
 					// insert instruction to reservation station
 					currentRsvStations[index].pInstruction = currentInst;
 					currentRsvStations[index].busy = TRUE;
 					instructionIssued = TRUE;
+
+					FilesManager_AddToIssueArray(currentInst);
 
 					printf("\n** Added instruction <PC=%d,OPCODE=%d> to station %s\n",
 						currentInst->pc, currentInst->opcode, currentRsvStations[index].name);
@@ -213,7 +208,7 @@ VOID CPU_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt)
 
 					F[currentInst->DST].hasTag = TRUE;
 					F[currentInst->DST].tag = &currentRsvStations[index];
-					F[currentInst->DST].tagPC = currentInst->pc;
+					F[currentInst->DST].inst = currentInst;
 					printf("\nWrote tag %s to register F[%d] \n", F[currentInst->DST].tag->name, currentInst->DST);
 
 
@@ -269,30 +264,40 @@ VOID CPU_ProcessFunctionalUnits(PBOOL pisCPUreadyForHalt)
 			{
 				*pisCPUreadyForHalt = FALSE;
 
-				if (pCurrentFU->clockCycleCounter == pCurrentFU->delay)
+				if (pCurrentFU->clockCycleCounter == pCurrentFU->delay - 1)
 				{
 					printf("\nFuncUnit %s.%d finished\n", funame(j), index);
 
-					pCurrentFU->pInstruction->cycleExecutionEnd = CC;
-					//same index as the type of the functional unit,
-					//try to write to CDB
-					if (CDBs[j].tag == NULL)
+					if (pCurrentFU->pInstruction->cycleExecutionEnd == 0)
 					{
-						//if relevant CDB is empty
-						printf("FuncUnit %s.%d wrote value %f to CDB %d\n", funame(j), index, pCurrentFU->DST, j);
+						pCurrentFU->pInstruction->cycleExecutionEnd = CC;
+					}
+					else
+					{ //it didn't end in this CC
 
-						//take tag from the instruction
-						CDBs[j].tag = pCurrentFU->pInstruction->tag;
-						CDBs[j].tagPC = pCurrentFU->pInstruction->pc;
-						CDBs[j].value = pCurrentFU->DST;
-						CDBs[j].CCupdated = CC;
-						pCurrentFU->pInstruction->cycleWriteCDB = CC;
+						//same index as the type of the functional unit,
+						//try to write to CDB
+						if (CDBs[j].tag == NULL)
+						{
+							//if relevant CDB is empty
+							printf("FuncUnit %s.%d wrote value %f to CDB %d\n", funame(j), index, pCurrentFU->DST, j);
 
-						safeFree(pCurrentFU->pInstruction);
-						//finished with instruction :)
+							//take tag from the instruction
+							CDBs[j].tag = pCurrentFU->pInstruction->tag;
+							CDBs[j].inst = pCurrentFU->pInstruction;
+							CDBs[j].value = pCurrentFU->DST;
+							CDBs[j].CCupdated = CC;
+							pCurrentFU->pInstruction->cycleWriteCDB = CC;
 
-						pCurrentFU->clockCycleCounter = 0;
-						pCurrentFU->busy = FALSE;
+							//FilesManager_WriteTraceinst(pCurrentFU->pInstruction);
+
+							//safeFree(pCurrentFU->pInstruction);
+							//finished with instruction :)
+
+							pCurrentFU->clockCycleCounter = 0;
+							pCurrentFU->busy = FALSE;
+					}
+					
 					}
 					//if CDBs[j].tag is not NULL then just wait, don't clock cycle counter
 				}
@@ -333,6 +338,9 @@ VOID CPU_ProcessFunctionalUnits(PBOOL pisCPUreadyForHalt)
 
 							pCurrentFU->SRC0 = relevantReservationStations[k].Vj;
 							pCurrentFU->SRC1 = relevantReservationStations[k].Vk;
+
+							pCurrentFU->clockCycleCounter++; //this cycle counts
+
 							relevantReservationStations[k].busy = FALSE;
 
 							// Do the actual calculation and save the result inside the functional unit
@@ -444,7 +452,7 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 	{
 		printf("\nmemoryUnit is BUSY with instruction PC = %d\n", memoryUnit->pInstruction->pc);
 		*pIsCPUreadyForHalt = FALSE;
-		if (memoryUnit->clockCycleCounter == memoryUnit->delay)
+		if (memoryUnit->clockCycleCounter == memoryUnit->delay - 1)
 		{
 			printf("\nmemoryUnit is finished instruction PC = %d\n", memoryUnit->pInstruction->pc);
 
@@ -462,7 +470,9 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 
 				memoryUnit->pInstruction->cycleWriteCDB = CC;
 
-				safeFree(memoryUnit->pInstruction);
+				//FilesManager_WriteTraceinst(memoryUnit->pInstruction);
+
+				//safeFree(memoryUnit->pInstruction);
 				//finished with instruction :)
 
 				memoryUnit->clockCycleCounter = 0;
@@ -495,6 +505,7 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 						memoryUnit->pInstruction = currentBuffer[k].pInstruction;
 
 						memoryUnit->pInstruction->cycleExecutionStart = CC;
+						memoryUnit->clockCycleCounter++; //this cycle counts
 
 						currentBuffer[k].pInstruction = NULL;
 
@@ -503,11 +514,11 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 						switch (memoryUnit->pInstruction->opcode)
 						{
 						case LD:
-							memoryUnit->DST = mem[memoryUnit->pInstruction->IMM];
+							memoryUnit->DST = Hex2Float(mem[memoryUnit->pInstruction->IMM]);
 							break;
 
 						case ST:
-							mem[memoryUnit->pInstruction->IMM] = currentBuffer[k].Vk;
+							mem[memoryUnit->pInstruction->IMM] = Float2Hex(currentBuffer[k].Vk);
 							break;
 
 						default:
@@ -544,7 +555,7 @@ VOID CPU_WriteResultToRegister(PBOOL pIsCPUreadyForHalt)
 				{
 					//tag on CDB equals tag of register
 					if (CDBs[k].tag == F[index].tag && 
-						CDBs[k].tagPC == F[index].tagPC)
+						CDBs[k].inst->pc == F[index].inst->pc)
 					{
 						//write to register 
 						printf("\nRegister F[%d] taking tag %s (value = %f) from CDB %d\n", index, F[index].tag->name, CDBs[k].value, k);
@@ -575,9 +586,17 @@ int main(int argc, char** argv)
 	{
 		printf("\n--- Tomsulo Algorithm Simulator ---\n\n");
 
-		runCheckStatusBreak(FileParser_MeminParser, mem);
+		if (argc < 7) 
+		{
+			printf("Wrong command line arguments.\nRun with: sim cfg.txt memin.txt memout.txt regout.txt traceinst.txt tracecdb.txt\n");
+			break;
+		}
 
-		runCheckStatusBreak(FileParser_ConfigParser, &config);
+		runCheckStatusBreak(FilesManager_ConfigParser, &config,argv[1]);
+
+		runCheckStatusBreak(FilesManager_MeminParser, mem, argv[2]);
+
+		runCheckStatusBreak(FilesManager_InitializeOutputFiles, argv[3], argv[4], argv[5], argv[6]);
 
 		InitializeReservationsStations(&config);
 
@@ -585,7 +604,6 @@ int main(int argc, char** argv)
 		{
 			F[index].value = (float)index;
 			F[index].hasTag = FALSE;
-			F[index].tagPC = 0;
 			F[index].tag = NULL;
 		}
 
@@ -628,6 +646,8 @@ int main(int argc, char** argv)
 
 			CPU_WriteResultToRegister(&isCPUreadyForHalt);
 			
+			FilesManager_WriteTracedb(CDBs, CC);
+
 			//Clear CDBs every CC because all needed was passed either to reservation station or register
 			memset(CDBs, 0, sizeof(CDBs));
 
@@ -640,19 +660,24 @@ int main(int argc, char** argv)
 			CC++;
 		}
 
+		printf("\n\nFinal Register Values:\n^^^^^^^^^^^^^^^^^^^^^^\n\n");
+		for (index = 0; index < NUM_REGS; index++)
+			printf("F[%d] = %.1f\n", index, F[index].value);
+
 	} while (FALSE);
 
+	FilesManager_WriteRegisters(F);
 
-	printf("\n\nFinal Register Values:\n^^^^^^^^^^^^^^^^^^^^^^\n\n");
-	for (index = 0; index < NUM_REGS; index++)
-		printf("F[%d] = %.1f\n", index, F[index].value);
+	FilesManager_WriteMemout(mem);
+	FilesManager_WriteTraceinst();
 
 	Queue_Destroy(pInstQ);
+
 	cleanMemory();
 
 	printf("\n*** Memory Counter = %d\n", globalMemoryCounter);
-	printf("\npress any key to exit...\n");
-	getchar();
+	//printf("\npress any key to exit...\n");
+	//getchar();
 
 	return 0;
 }

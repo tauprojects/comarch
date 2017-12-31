@@ -91,14 +91,14 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="FileParser.c" />
+    <ClCompile Include="FilesManager.c" />
     <ClCompile Include="Instructions.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="Queue.c" />
     <ClCompile Include="safeMalloc.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FileParser.h" />
+    <ClInclude Include="FilesManager.h" />
     <ClInclude Include="Instructions.h" />
     <ClInclude Include="mainDefs.h" />
     <ClInclude Include="Queue.h" />

@@ -3,23 +3,26 @@
 
 #include "safeMalloc.h"
 
+#define breakpoint			printf("## BREAKPOINT: %s | %d\n",__FUNCTION__,__LINE__)
+
+
 #define MEMORY_SIZE		4096
 #define MAX_LINE_LEN	200
 #define TRUE			1
 #define FALSE			0
 #define NUM_REGS		16
-#define MEMIN_FILENAME			"memin.txt"
-#define CONF_FILENAME			"config.txt"
 #define INSTRUCTION_QUEUE_LEN	16
 
-#define Hex2Float(x)			*((float*)&x);	
-								
+#define Hex2Float(x)			*((float*)&(x));	
+#define Float2Hex(x)			*((unsigned int*)&(x));	
+
 
 typedef unsigned int	UINT32, *PUINT32;
 typedef int				INT32,	*PINT32;
 typedef void			VOID,	*PVOID;
 typedef UINT32			BOOL,	*PBOOL;
 typedef char			CHAR,	*PCHAR,	**PPCHAR;
+typedef const char*		CPCHAR;
 
 typedef enum _STATUS {
 	STATUS_SUCCESS,
@@ -122,7 +125,7 @@ typedef struct _register
 	BOOL			hasTag;
 
 	pRsvStation		tag;
-	UINT32			tagPC;		//to differentiate tags in the case there is the same tags
+	PInstCtx		inst;		//to differentiate tags in the case there is the same tags
 								//from different instructions after one instruction was freed
 								//from reservation station and the same reservation station
 								//got a different instruction in the meantime
@@ -132,7 +135,7 @@ typedef struct _register
 typedef struct __cdb
 {
 	pRsvStation tag;
-	UINT32		tagPC;
+	PInstCtx	inst;
 
 	float		value;
 	UINT32		CCupdated;
