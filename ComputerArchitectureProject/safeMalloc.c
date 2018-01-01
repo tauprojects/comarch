@@ -8,7 +8,7 @@ int	globalMemoryCounter = 0;
 int arrayCounter = 0;
 void* pointers_array[LEN];
 
-void* safeMalloc(size_t size)
+void* safeMalloc(unsigned int size)
 {
 	void* ret = malloc(size);
 
@@ -24,7 +24,7 @@ void* safeMalloc(size_t size)
 	return ret;
 }
 
-void* safeCalloc(size_t count, size_t size)
+void* safeCalloc(unsigned int count, unsigned int size)
 {
 	void* ret = calloc(count, size);
 
