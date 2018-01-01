@@ -5,7 +5,13 @@
 
 #define breakpoint			printf("## BREAKPOINT: %s | %d\n",__FUNCTION__,__LINE__)
 
+#define DEBUG 1
 
+#if DEBUG == 1
+#define dprintf(...)	printf(__VA_ARGS__)
+#else
+#define dprintf(...)
+#endif
 
 #define MEMORY_SIZE		4096
 #define MAX_LINE_LEN	200
@@ -137,7 +143,7 @@ typedef struct _RsvStation
 	BOOL			busy;
 	BOOL			isInstInFuncUnit;
 	PInstCtx		pInstruction;
-	float			Address;		//for store operations / memory buffer usage
+	UINT32			Address;		//for store operations / memory buffer usage
 
 	//For Reservation stations ADD,MULT,DIV
 	float			Vj;

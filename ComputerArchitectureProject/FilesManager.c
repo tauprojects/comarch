@@ -235,7 +235,7 @@ STATUS FilesManager_WriteMemout(UINT32* mem)
 
 		for (index = 0; index < MEMORY_SIZE; index++)
 		{
-			fprintf(memout, "%08X\n",mem[index]);
+			fprintf(memout, "%08x\n",mem[index]);
 		}
 
 	} while (FALSE);
@@ -293,7 +293,7 @@ STATUS FilesManager_WriteTracedb(pCDB CDBs, UINT32 CC)
 		{
 			if (CDBs[index].tag != NULL)
 			{
-				printf("\nCDB <%s> has PC <%d> value <%.1f> with tag <%s>\n", CDBnames[index], CDBs[index].inst->pc, CDBs[index].value, CDBs[index].inst->tag->name);
+				dprintf("\nCDB <%s> has PC <%d> value <%.1f> with tag <%s>\n", CDBnames[index], CDBs[index].inst->pc, CDBs[index].value, CDBs[index].inst->tag->name);
 				fprintf(tracedb, "%d %d %s %f %s\n", CC, CDBs[index].inst->pc, CDBnames[index], CDBs[index].value, CDBs[index].inst->tag->name);
 			}
 		}

@@ -13,7 +13,7 @@ static VOID CPU_ProcessInstructionInFunctionalUnit(pFunctionUnit pCurrentFU, UIN
 	// delay-1 because the 0 CC in the count counts also
 	if (pCurrentFU->clockCycleCounter == pCurrentFU->delay - 1)
 	{
-		printf("\nFuncUnit %s finished\n", pCurrentFU->name);
+		dprintf("\nFuncUnit %s finished\n", pCurrentFU->name);
 
 		if (pCurrentFU->pInstruction->cycleExecutionEnd == 0)
 		{
@@ -28,7 +28,7 @@ static VOID CPU_ProcessInstructionInFunctionalUnit(pFunctionUnit pCurrentFU, UIN
 			if (CDBs[j].tag == NULL)
 			{
 				//if relevant CDB is empty
-				printf("FuncUnit %s wrote value %f to CDB %d\n", pCurrentFU->name, pCurrentFU->DST, pCurrentFU->type);
+				dprintf("FuncUnit %s wrote value %f to CDB %d\n", pCurrentFU->name, pCurrentFU->DST, pCurrentFU->type);
 
 				//take tag from the instruction
 				CDBs[j].tag = pCurrentFU->pInstruction->tag;
@@ -40,11 +40,6 @@ static VOID CPU_ProcessInstructionInFunctionalUnit(pFunctionUnit pCurrentFU, UIN
 				pCurrentFU->pInstruction->tag->pInstruction = NULL; //clean reservation station
 				pCurrentFU->pInstruction->tag->busy = FALSE;
 
-				//FilesManager_WriteTraceinst(pCurrentFU->pInstruction);
-
-				//safeFree(pCurrentFU->pInstruction);
-				//finished with instruction :)
-
 				pCurrentFU->clockCycleCounter = 0;
 				pCurrentFU->busy = FALSE;
 			}
@@ -55,7 +50,7 @@ static VOID CPU_ProcessInstructionInFunctionalUnit(pFunctionUnit pCurrentFU, UIN
 	else
 	{
 		pCurrentFU->clockCycleCounter++;
-		printf("\nFuncUnit %s counter = %d\n", pCurrentFU->name, pCurrentFU->clockCycleCounter);
+		dprintf("\nFuncUnit %s counter = %d\n", pCurrentFU->name, pCurrentFU->clockCycleCounter);
 	}
 }
 
@@ -66,29 +61,29 @@ static VOID CPU_CalculateResult(pFunctionUnit pCurrentFU)
 	case ADD:
 
 		pCurrentFU->DST = pCurrentFU->SRC0 + pCurrentFU->SRC1;
-		printf("\nADD happened - DST = %f\n", pCurrentFU->DST);
+		dprintf("\nADD happened - DST = %f\n", pCurrentFU->DST);
 		break;
 
 	case SUB:
 
 		pCurrentFU->DST = pCurrentFU->SRC0 - pCurrentFU->SRC1;
-		printf("\nSUB happened - DST = %f\n", pCurrentFU->DST);
+		dprintf("\nSUB happened - DST = %f\n", pCurrentFU->DST);
 		break;
 
 	case MULT:
 
 		pCurrentFU->DST = pCurrentFU->SRC0 * pCurrentFU->SRC1;
-		printf("\nMULT happened - DST = %f\n", pCurrentFU->DST);
+		dprintf("\nMULT happened - DST = %f\n", pCurrentFU->DST);
 		break;
 
 	case DIV:
 
 		pCurrentFU->DST = pCurrentFU->SRC0 / pCurrentFU->SRC1;
-		printf("\nDIV happened - DST = %f\n", pCurrentFU->DST);
+		dprintf("\nDIV happened - DST = %f\n", pCurrentFU->DST);
 		break;
 
 	default:
-		printf("\nWRONG INSTRUCTION\n");
+		dprintf("\nWRONG INSTRUCTION\n");
 		break;
 	}
 }
@@ -116,7 +111,7 @@ static VOID CPU_AddInstructionToFunctionalUnit(pFunctionUnit pCurrentFU, PBOOL p
 
 			if (pCurrentRsvSt->Qj == NULL && pCurrentRsvSt->Qk == NULL)
 			{
-				printf("\nFuncUnit %s taking PC %d from RsvStation %s\n", pCurrentFU->name, pCurrentRsvSt->pInstruction->pc, pCurrentRsvSt->name);
+				dprintf("\nFuncUnit %s taking PC %d from RsvStation %s\n", pCurrentFU->name, pCurrentRsvSt->pInstruction->pc, pCurrentRsvSt->name);
 
 				//to prevent other functional units from taking this instruction even though
 				//the station was busy

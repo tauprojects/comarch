@@ -23,9 +23,9 @@ static VOID RsvSta_InitializeOneRsvStation(pRsvStation* pRsvStationsTypeArray, U
 		RsvStationsTypeArray[i].numOfRsvStationsFromThisType = nr_reservation;
 		snprintf(RsvStationsTypeArray[i].name, 10, "%s%d", name, i);
 	}
-	breakpoint;
+
 	reservationStations[type] = RsvStationsTypeArray;
-	breakpoint;
+
 	//Initialize functional unit
 	if (type != LD && type != ST)
 	{
@@ -114,7 +114,7 @@ VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInst
 	{
 		Queue_Peek(pInstQ, &currentInst);
 
-		printf("\n** Working on instruction <PC=%d,OPCODE=%d>\n",
+		dprintf("\n** Working on instruction <PC=%d,OPCODE=%d>\n",
 			currentInst->pc, currentInst->opcode);
 		if (currentInst->opcode != HALT)
 		{
@@ -141,7 +141,7 @@ VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInst
 
 					FilesManager_AddToIssueArray(currentInst);
 
-					printf("\n** Added instruction <PC=%d,OPCODE=%d> to station %s\n",
+					dprintf("\n** Added instruction <PC=%d,OPCODE=%d> to station %s\n",
 						currentInst->pc, currentInst->opcode, rsvStArray[index].name);
 
 					//Update destination tag in register
@@ -156,7 +156,7 @@ VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInst
 						else
 						{
 							rsvStArray[index].Qk = F[currentInst->SRC1].tag;
-							printf("\n RsvStation %s Qk took tag from F[%d] = %s\n", rsvStArray[index].name, currentInst->SRC1, F[currentInst->SRC1].tag->name);
+							dprintf("\n RsvStation %s Qk took tag from F[%d] = %s\n", rsvStArray[index].name, currentInst->SRC1, F[currentInst->SRC1].tag->name);
 						}
 
 						if (currentInst->opcode != ST)
@@ -168,22 +168,26 @@ VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInst
 							else
 							{
 								rsvStArray[index].Qj = F[currentInst->SRC0].tag;
-								printf("\n RsvStation %s Qj took tag from F[%d] = %s\n", rsvStArray[index].name, currentInst->SRC0, F[currentInst->SRC0].tag->name);
+								dprintf("\n RsvStation %s Qj took tag from F[%d] = %s\n", rsvStArray[index].name, currentInst->SRC0, F[currentInst->SRC0].tag->name);
 							}
+						}
+						else
+						{
+							rsvStArray[index].Address = currentInst->IMM;
 						}
 					}
 
 					F[currentInst->DST].hasTag = TRUE;
 					F[currentInst->DST].tag = &rsvStArray[index];
 					F[currentInst->DST].inst = currentInst;
-					printf("\nWrote tag %s to register F[%d] \n", F[currentInst->DST].tag->name, currentInst->DST);
+					dprintf("\nWrote tag %s to register F[%d] \n", F[currentInst->DST].tag->name, currentInst->DST);
 
 
 					break;
 				}
 				else
 				{
-					printf("\n** Station %s is BUSY\n", rsvStArray[index].name);
+					dprintf("\n** Station %s is BUSY\n", rsvStArray[index].name);
 				}
 
 			}
@@ -198,7 +202,7 @@ VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInst
 
 		else
 		{
-			printf("Instruction (PC = %d) is HALT\n", currentInst->pc);
+			dprintf("Instruction (PC = %d) is HALT\n", currentInst->pc);
 			*pWasHolt = TRUE;
 			break;
 		}
@@ -229,7 +233,7 @@ VOID RsvSta_CheckIfRsvStationCanGetDataFromCDB(PBOOL pIsCPUreadyForHalt, PCONFIG
 
 			if (pCurrentRsvSt->busy == TRUE)
 			{
-				printf("\nRsvStation %s has instruction PC=%d\n", pCurrentRsvSt->name, pCurrentRsvSt->pInstruction->pc);
+				dprintf("\nRsvStation %s has instruction PC=%d\n", pCurrentRsvSt->name, pCurrentRsvSt->pInstruction->pc);
 
 				*pIsCPUreadyForHalt = FALSE;
 
@@ -243,13 +247,13 @@ VOID RsvSta_CheckIfRsvStationCanGetDataFromCDB(PBOOL pIsCPUreadyForHalt, PCONFIG
 					{
 						if (pCurrentRsvSt->Qj == CDB->tag)
 						{
-							printf("\nRsvStation %s took value Vj from CDB %d for PC=%d\n", pCurrentRsvSt->name, k, pCurrentRsvSt->pInstruction->pc);
+							dprintf("\nRsvStation %s took value Vj from CDB %d for PC=%d\n", pCurrentRsvSt->name, k, pCurrentRsvSt->pInstruction->pc);
 							pCurrentRsvSt->Qj = NULL;
 							pCurrentRsvSt->Vj = CDB->value;
 						}
 						else if (pCurrentRsvSt->Qk == CDB->tag)
 						{
-							printf("\nRsvStation %s took value Vk from CDB %d for PC=%d\n", pCurrentRsvSt->name, k, pCurrentRsvSt->pInstruction->pc);
+							dprintf("\nRsvStation %s took value Vk from CDB %d for PC=%d\n", pCurrentRsvSt->name, k, pCurrentRsvSt->pInstruction->pc);
 							pCurrentRsvSt->Qk = NULL;
 							pCurrentRsvSt->Vk = CDB->value;
 						}

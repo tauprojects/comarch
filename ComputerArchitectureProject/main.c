@@ -47,28 +47,38 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 
 	if (memoryUnit->busy == TRUE)
 	{
-		printf("\nmemoryUnit is BUSY with instruction PC = %d\n", memoryUnit->pInstruction->pc);
+
+		dprintf("\nmemoryUnit is BUSY with instruction PC = %d\n", memoryUnit->pInstruction->pc);
 		*pIsCPUreadyForHalt = FALSE;
 		if (memoryUnit->clockCycleCounter == memoryUnit->delay - 1)
 		{
-			printf("\nmemoryUnit is finished instruction PC = %d\n", memoryUnit->pInstruction->pc);
+			dprintf("\nmemoryUnit is finished instruction PC = %d\n", memoryUnit->pInstruction->pc);
 
 			memoryUnit->pInstruction->cycleExecutionEnd = CC;
 			//same index as the type of the functional unit,
 			//try to write to CDB
+			
+			if (memoryUnit->pInstruction->opcode == ST)
+			{
+				//actual write to memory
+				mem[memoryUnit->pInstruction->tag->Address] = Float2Hex(memoryUnit->DST);
+				dprintf("\nMemoryUnit wrote value %f <%X> to MEM[%d]\n",memoryUnit->DST, mem[memoryUnit->pInstruction->tag->Address], memoryUnit->pInstruction->tag->Address);
+			}
+			
 			if (CDBs[3].tag == NULL)
 			{
 				//if relevant CDB is empty
-				printf("\nmemoryUnit wrote PC = %d to CDB 3\n", memoryUnit->pInstruction->pc);
+				dprintf("\nMemoryUnit wrote value %f to CDB 3\n", memoryUnit->DST);
 
 				//take tag from the instruction
 				CDBs[3].tag = memoryUnit->pInstruction->tag;
+				CDBs[3].inst = memoryUnit->pInstruction;
 				CDBs[3].value = memoryUnit->DST;
+				CDBs[3].CCupdated = CC;
+				memoryUnit->pInstruction->cycleWriteCDB = CC;
 
 				memoryUnit->pInstruction->tag->pInstruction = NULL; //clean reservation station
 				memoryUnit->pInstruction->tag->busy = FALSE;
-
-				memoryUnit->pInstruction->cycleWriteCDB = CC;
 
 				memoryUnit->clockCycleCounter = 0;
 				memoryUnit->busy = FALSE;
@@ -78,6 +88,8 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 		else
 		{
 			memoryUnit->clockCycleCounter++;
+			dprintf("\nMemoryUnit counter = %d\n", memoryUnit->clockCycleCounter);
+
 		}
 	}
 	else //memory unit is empty
@@ -94,6 +106,8 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 					//relevant only for store, will always be NULL for load
 					if (currentBuffer[k].Qk == NULL)
 					{
+						dprintf("\nMemoryUnit taking PC %d from RsvStation %s\n", currentBuffer[k].pInstruction->pc, currentBuffer[k].pInstruction->tag->name);
+
 						//if the store value is valid
 						memoryUnit->busy = TRUE;
 
@@ -113,11 +127,11 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 							break;
 
 						case ST:
-							mem[memoryUnit->pInstruction->IMM] = Float2Hex(currentBuffer[k].Vk);
+							memoryUnit->DST = currentBuffer[k].Vk;
 							break;
 
 						default:
-							printf("WRONG INSTRUCTION\n");
+							dprintf("WRONG INSTRUCTION\n");
 							break;
 						}
 						////////
@@ -142,7 +156,9 @@ VOID CPU_WriteResultToRegister(PBOOL pIsCPUreadyForHalt)
 	{
 		if (F[index].hasTag == TRUE)
 		{
-			printf("\nRegister F[%d] has tag %s\n", index, F[index].tag->name);
+			
+			//breakpoint;
+			dprintf("\nRegister F[%d] has tag %s\n", index, F[index].tag->name);
 			*pIsCPUreadyForHalt = FALSE;
 			for (k = 0; k < NUM_CDBS; k++) //pass on all CDB's
 			{
@@ -153,7 +169,7 @@ VOID CPU_WriteResultToRegister(PBOOL pIsCPUreadyForHalt)
 						CDBs[k].inst->pc == F[index].inst->pc)
 					{
 						//write to register 
-						printf("\nRegister F[%d] taking tag %s (value = %f) from CDB %d\n", index, F[index].tag->name, CDBs[k].value, k);
+						dprintf("\nRegister F[%d] taking tag %s (value = %f) from CDB %d\n", index, F[index].tag->name, CDBs[k].value, k);
 
 						F[index].value = CDBs[k].value;
 						F[index].hasTag = FALSE;
@@ -183,7 +199,7 @@ int main(int argc, char** argv)
 
 		if (argc < 7) 
 		{
-			printf("Wrong command line arguments.\nRun with: sim cfg.txt memin.txt memout.txt regout.txt traceinst.txt tracecdb.txt\n");
+			dprintf("Wrong command line arguments.\nRun with: sim cfg.txt memin.txt memout.txt regout.txt traceinst.txt tracecdb.txt\n");
 			break;
 		}
 
@@ -192,7 +208,7 @@ int main(int argc, char** argv)
 		runCheckStatusBreak(FilesManager_MeminParser, mem, argv[2]);
 
 		runCheckStatusBreak(FilesManager_InitializeOutputFiles, argv[3], argv[4], argv[5], argv[6]);
-		breakpoint;
+
 		RsvSta_InitializeReservationsStations(&config);
 
 		for (index = 0; index < NUM_REGS; index++)
@@ -206,7 +222,7 @@ int main(int argc, char** argv)
 
 		while (TRUE)
 		{
-			printf("\n************************************** CC = %d ************************************\n", CC);
+			dprintf("\n************************************** CC = %d ************************************\n", CC);
 			isCPUreadyForHalt = TRUE;
 
 			/**
@@ -215,7 +231,6 @@ int main(int argc, char** argv)
 			 */
 			if (wasHalt == FALSE)
 			{
-				breakpoint;
 				Instructions_FetchTwoInstructions(pInstQ, mem, &PC);
 
 				//if the first CC, cannot do anything yet because fetch takes full CC
@@ -232,11 +247,11 @@ int main(int argc, char** argv)
 			/* Process Functional Units */
 			CPU_ProcessFunctionalUnits(&isCPUreadyForHalt);
 
-			/* Check if there's values ready on the CDB for any reservation station */
-			RsvSta_CheckIfRsvStationCanGetDataFromCDB(&isCPUreadyForHalt,&config);
-
 			/* Process memory unit */
 			CPU_ProcessMemoryUnit(&isCPUreadyForHalt);
+
+			/* Check if there's values ready on the CDB for any reservation station */
+			RsvSta_CheckIfRsvStationCanGetDataFromCDB(&isCPUreadyForHalt,&config);
 
 			/* MEMORY UNIT SHOULD PE PIPELINED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
 
@@ -249,7 +264,7 @@ int main(int argc, char** argv)
 
 			if (wasHalt == TRUE && isCPUreadyForHalt == TRUE)
 			{
-				printf("\nHALT detected, BREAKING!!\n");
+				dprintf("\nHALT detected, BREAKING!!\n");
 				break;
 			}
 
@@ -258,7 +273,7 @@ int main(int argc, char** argv)
 
 		printf("\n\nFinal Register Values:\n^^^^^^^^^^^^^^^^^^^^^^\n\n");
 		for (index = 0; index < NUM_REGS; index++)
-			printf("F[%d] = %.1f\n", index, F[index].value);
+			printf("F[%d] = %f\n", index, F[index].value);
 
 	} while (FALSE);
 

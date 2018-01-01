@@ -116,7 +116,7 @@ STATUS Instructions_FetchTwoInstructions(PQUEUE pInstQ, PUINT32 mem, PUINT32 pPC
 			break;
 		}
 
-		printf("Fetched PC %d\n", PC);
+		dprintf("Fetched PC %d\n", PC);
 
 		*pPC = PC + 1;
 	}

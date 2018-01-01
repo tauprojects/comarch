@@ -2,6 +2,11 @@
 
 
 opcodes = ['LD', 'ST', 'ADD', 'SUB', 'MULT', 'DIV', 'HALT']
+mem = {}
+
+def writeMem(BIN, startInd):
+
+	None
 
 
 def compile(filename):
@@ -11,7 +16,12 @@ def compile(filename):
     for ind, line in enumerate(ASM):
         if line.startswith("#") or line[0].isspace():
             continue
-
+		
+		if line.startswith("mem"):	#mem	10	1.45346
+			comp = line.split()
+			mem[comp[1]] = comp[2]
+			continue;
+			
         comp = line.split()
         opcode = opcodes.index(comp[0])
         DST = 0
