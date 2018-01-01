@@ -6,6 +6,7 @@
 #define breakpoint			printf("## BREAKPOINT: %s | %d\n",__FUNCTION__,__LINE__)
 
 
+
 #define MEMORY_SIZE		4096
 #define MAX_LINE_LEN	200
 #define TRUE			1
@@ -17,6 +18,20 @@
 #define Hex2Float(x)			*((float*)&(x));	
 #define Float2Hex(x)			*((unsigned int*)&(x));	
 
+/**
+* This macro runs a function with its argument, and then checks if the
+* returned status is SUCCESS (status != 0).
+* Requires an initialized STATUS status variable
+*/
+#define	runCheckStatusBreak(func,...)										\
+{																			\
+	status = func(__VA_ARGS__);												\
+	if (status)																\
+	{																		\
+		printf("Function [%s] returned with status %d\n", #func, status);	\
+		break;																\
+	}																		\
+}
 
 typedef unsigned int	UINT32, *PUINT32;
 typedef int				INT32,	*PINT32;
@@ -39,6 +54,21 @@ typedef enum _STATUS {
 	STATUS_INVALID_QUEUE,
 	STATUS_INVALID_INSTRUCTION
 } STATUS; 
+
+typedef struct _CONFIG {
+	UINT32 add_nr_units;
+	UINT32 mul_nr_units;
+	UINT32 div_nr_units;
+	UINT32 add_nr_reservation;
+	UINT32 mul_nr_reservation;
+	UINT32 div_nr_reservation;
+	UINT32 add_delay;
+	UINT32 mul_delay;
+	UINT32 div_delay;
+	UINT32 mem_delay;
+	UINT32 mem_nr_load_buffers;
+	UINT32 mem_nr_store_buffers;
+} CONFIG, *PCONFIG;
 
 typedef enum _InstType
 {
@@ -132,7 +162,7 @@ typedef struct _register
 								//from reservation station and the same reservation station
 								//got a different instruction in the meantime
 
-} Register, *pResgister;
+} Register, *pRegister;
 
 typedef struct __cdb
 {

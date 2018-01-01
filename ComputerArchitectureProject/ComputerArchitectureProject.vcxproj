@@ -96,16 +96,20 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="FilesManager.c" />
+    <ClCompile Include="FunctionalUnits.c" />
     <ClCompile Include="Instructions.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="Queue.c" />
+    <ClCompile Include="ReservationStations.c" />
     <ClCompile Include="safeMalloc.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FilesManager.h" />
+    <ClInclude Include="FunctionalUnits.h" />
     <ClInclude Include="Instructions.h" />
     <ClInclude Include="mainDefs.h" />
     <ClInclude Include="Queue.h" />
+    <ClInclude Include="ReservationStations.h" />
     <ClInclude Include="safeMalloc.h" />
   </ItemGroup>
   <ItemGroup>

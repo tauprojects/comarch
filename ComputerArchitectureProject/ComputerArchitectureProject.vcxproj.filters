@@ -30,6 +30,12 @@
     <ClCompile Include="FilesManager.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ReservationStations.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="FunctionalUnits.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mainDefs.h">
@@ -45,6 +51,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="FilesManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ReservationStations.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="FunctionalUnits.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
