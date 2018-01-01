@@ -38,116 +38,6 @@ _CDB			CDBs[NUM_CDBS];
 /*                  MAIN       									        */
 /************************************************************************/
 
-
-VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
-{
-	UINT32		j, k;
-	pRsvStation currentBuffer;
-	pRsvStation buffers[2] = { LoadBuffers, StoreBuffers };
-
-	if (memoryUnit->busy == TRUE)
-	{
-
-		dprintf("\nmemoryUnit is BUSY with instruction PC = %d\n", memoryUnit->pInstruction->pc);
-		*pIsCPUreadyForHalt = FALSE;
-		if (memoryUnit->clockCycleCounter == memoryUnit->delay - 1)
-		{
-			dprintf("\nmemoryUnit is finished instruction PC = %d\n", memoryUnit->pInstruction->pc);
-
-			memoryUnit->pInstruction->cycleExecutionEnd = CC;
-			//same index as the type of the functional unit,
-			//try to write to CDB
-			
-			if (memoryUnit->pInstruction->opcode == ST)
-			{
-				//actual write to memory
-				mem[memoryUnit->pInstruction->tag->Address] = Float2Hex(memoryUnit->DST);
-				dprintf("\nMemoryUnit wrote value %f <%X> to MEM[%d]\n",memoryUnit->DST, mem[memoryUnit->pInstruction->tag->Address], memoryUnit->pInstruction->tag->Address);
-			}
-			
-			if (CDBs[3].tag == NULL)
-			{
-				//if relevant CDB is empty
-				dprintf("\nMemoryUnit wrote value %f to CDB 3\n", memoryUnit->DST);
-
-				//take tag from the instruction
-				CDBs[3].tag = memoryUnit->pInstruction->tag;
-				CDBs[3].inst = memoryUnit->pInstruction;
-				CDBs[3].value = memoryUnit->DST;
-				CDBs[3].CCupdated = CC;
-				memoryUnit->pInstruction->cycleWriteCDB = CC;
-
-				memoryUnit->pInstruction->tag->pInstruction = NULL; //clean reservation station
-				memoryUnit->pInstruction->tag->busy = FALSE;
-
-				memoryUnit->clockCycleCounter = 0;
-				memoryUnit->busy = FALSE;
-			}
-			//if CDBs[3].tag is not NULL then just wait, don't clock cycle counter
-		}
-		else
-		{
-			memoryUnit->clockCycleCounter++;
-			dprintf("\nMemoryUnit counter = %d\n", memoryUnit->clockCycleCounter);
-
-		}
-	}
-	else //memory unit is empty
-	{
-		for (j = 0; j < 2; j++)
-		{
-			currentBuffer = buffers[j];
-
-			for (k = 0; k < currentBuffer->numOfRsvStationsFromThisType; k++)
-			{
-				if (currentBuffer[k].busy == TRUE)
-				{
-					*pIsCPUreadyForHalt = FALSE;
-					//relevant only for store, will always be NULL for load
-					if (currentBuffer[k].Qk == NULL)
-					{
-						dprintf("\nMemoryUnit taking PC %d from RsvStation %s\n", currentBuffer[k].pInstruction->pc, currentBuffer[k].pInstruction->tag->name);
-
-						//if the store value is valid
-						memoryUnit->busy = TRUE;
-
-						memoryUnit->pInstruction = currentBuffer[k].pInstruction;
-
-						memoryUnit->pInstruction->cycleExecutionStart = CC;
-						memoryUnit->clockCycleCounter++; //this cycle counts
-
-						currentBuffer[k].pInstruction = NULL;
-
-						currentBuffer[k].busy = FALSE;
-
-						switch (memoryUnit->pInstruction->opcode)
-						{
-						case LD:
-							memoryUnit->DST = Hex2Float(mem[memoryUnit->pInstruction->IMM]);
-							break;
-
-						case ST:
-							memoryUnit->DST = currentBuffer[k].Vk;
-							break;
-
-						default:
-							dprintf("WRONG INSTRUCTION\n");
-							break;
-						}
-						////////
-
-						break;
-					}
-				}
-
-			}
-
-			if (memoryUnit->busy == TRUE)
-				break; //break outer loop if instruction was already treated
-		}
-	}
-}
-
 VOID CPU_WriteResultToRegister(PBOOL pIsCPUreadyForHalt)
 {
 	UINT32 index, k;
@@ -168,10 +58,13 @@ VOID CPU_WriteResultToRegister(PBOOL pIsCPUreadyForHalt)
 					if (CDBs[k].tag == F[index].tag && 
 						CDBs[k].inst->pc == F[index].inst->pc)
 					{
-						//write to register 
-						dprintf("\nRegister F[%d] taking tag %s (value = %f) from CDB %d\n", index, F[index].tag->name, CDBs[k].value, k);
+						//write to register if not store operation
+						if (CDBs[k].inst->opcode != ST)
+						{
+							dprintf("\nRegister F[%d] taking tag %s (value = %f) from CDB %d\n", index, F[index].tag->name, CDBs[k].value, k);
+							F[index].value = CDBs[k].value;
+						}
 
-						F[index].value = CDBs[k].value;
 						F[index].hasTag = FALSE;
 
 						break; //continue outer loop
