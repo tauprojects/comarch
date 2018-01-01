@@ -256,16 +256,6 @@ STATUS FilesManager_WriteTraceinst(VOID)
 		}
 		for (int i = 0; i < issueCtr; i++)
 		{
-			//printf("\n###################### inst = %d | %08X\n", instrctionByIssue[i].inst, instrctionByIssue[i].inst);
-			printf("%08x %d %s %d %d %d %d\n",
-				instrctionByIssue[i]->inst,
-				instrctionByIssue[i]->pc,
-				instrctionByIssue[i]->tag->name,
-				instrctionByIssue[i]->cycleIssued,
-				instrctionByIssue[i]->cycleExecutionStart,
-				instrctionByIssue[i]->cycleExecutionEnd,
-				instrctionByIssue[i]->cycleWriteCDB);
-
 			fprintf(traceinst, "%08x %d %s %d %d %d %d\n",
 				instrctionByIssue[i]->inst,
 				instrctionByIssue[i]->pc,
@@ -303,6 +293,7 @@ STATUS FilesManager_WriteTracedb(pCDB CDBs, UINT32 CC)
 		{
 			if (CDBs[index].tag != NULL)
 			{
+				printf("\nCDB <%s> has PC <%d> value <%.1f> with tag <%s>\n", CDBnames[index], CDBs[index].inst->pc, CDBs[index].value, CDBs[index].inst->tag->name);
 				fprintf(tracedb, "%d %d %s %f %s\n", CC, CDBs[index].inst->pc, CDBnames[index], CDBs[index].value, CDBs[index].inst->tag->name);
 			}
 		}

@@ -170,6 +170,7 @@ VOID CPU_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt)
 					// insert instruction to reservation station
 					currentRsvStations[index].pInstruction = currentInst;
 					currentRsvStations[index].busy = TRUE;
+					currentRsvStations[index].isInstInFuncUnit = FALSE;
 					instructionIssued = TRUE;
 
 					FilesManager_AddToIssueArray(currentInst);
@@ -289,6 +290,9 @@ VOID CPU_ProcessFunctionalUnits(PBOOL pisCPUreadyForHalt)
 							CDBs[j].CCupdated = CC;
 							pCurrentFU->pInstruction->cycleWriteCDB = CC;
 
+							pCurrentFU->pInstruction->tag->pInstruction = NULL; //clean reservation station
+							pCurrentFU->pInstruction->tag->busy = FALSE;
+
 							//FilesManager_WriteTraceinst(pCurrentFU->pInstruction);
 
 							//safeFree(pCurrentFU->pInstruction);
@@ -314,7 +318,8 @@ VOID CPU_ProcessFunctionalUnits(PBOOL pisCPUreadyForHalt)
 				//check reservations stations from this type and take first valid instruction
 				for (k = 0; k < relevantReservationStations->numOfRsvStationsFromThisType; k++)
 				{
-					if (relevantReservationStations[k].busy == TRUE)
+					if (relevantReservationStations[k].busy == TRUE
+						&& relevantReservationStations[k].isInstInFuncUnit == FALSE)
 					{
 
 						//don't move instruction from reservation station to functional unit in the same CC
@@ -327,6 +332,10 @@ VOID CPU_ProcessFunctionalUnits(PBOOL pisCPUreadyForHalt)
 						{
 							printf("\nFuncUnit %s.%d taking PC %d from RsvStation %s\n", funame(j), index, relevantReservationStations[k].pInstruction->pc, relevantReservationStations[k].name);
 
+							//to prevent other functional units from taking this instruction even though
+							//the station was busy
+							relevantReservationStations[k].isInstInFuncUnit = TRUE;
+
 							//if they are both empty, namely, if values are relevant in reservation station
 							pCurrentFU->busy = TRUE;
 
@@ -334,14 +343,14 @@ VOID CPU_ProcessFunctionalUnits(PBOOL pisCPUreadyForHalt)
 
 							pCurrentFU->pInstruction->cycleExecutionStart = CC;
 
-							relevantReservationStations[k].pInstruction = NULL;
-
+							//relevantReservationStations[k].pInstruction = NULL;
+							//relevantReservationStations[k].busy = FALSE;
 							pCurrentFU->SRC0 = relevantReservationStations[k].Vj;
 							pCurrentFU->SRC1 = relevantReservationStations[k].Vk;
 
 							pCurrentFU->clockCycleCounter++; //this cycle counts
 
-							relevantReservationStations[k].busy = FALSE;
+							
 
 							// Do the actual calculation and save the result inside the functional unit
 							switch (pCurrentFU->pInstruction->opcode)
@@ -427,12 +436,16 @@ VOID CPU_CheckIfRsvStationCanGetDataFromCDB(PBOOL pIsCPUreadyForHalt, PCONFIG pC
 							printf("\nRsvStation %s took value Vj from CDB %d for PC=%d\n", currentRsvStations[index].name, k, currentRsvStations[index].pInstruction->pc);
 							currentRsvStations[index].Qj = NULL;
 							currentRsvStations[index].Vj = CDB->value;
+							//CDB->tag->pInstruction = NULL;
+							//CDB->tag->busy = FALSE;
 						}
 						else if (currentRsvStations[index].Qk == CDB->tag)
 						{
 							printf("\nRsvStation %s took value Vk from CDB %d for PC=%d\n", currentRsvStations[index].name, k, currentRsvStations[index].pInstruction->pc);
 							currentRsvStations[index].Qk = NULL;
 							currentRsvStations[index].Vk = CDB->value;
+							//CDB->tag->pInstruction = NULL;
+							//CDB->tag->busy = FALSE;
 						}
 					}
 				}
@@ -467,6 +480,9 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 				//take tag from the instruction
 				CDBs[3].tag = memoryUnit->pInstruction->tag;
 				CDBs[3].value = memoryUnit->DST;
+
+				memoryUnit->pInstruction->tag->pInstruction = NULL; //clean reservation station
+				memoryUnit->pInstruction->tag->busy = FALSE;
 
 				memoryUnit->pInstruction->cycleWriteCDB = CC;
 

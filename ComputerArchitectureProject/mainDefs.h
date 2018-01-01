@@ -104,6 +104,7 @@ typedef struct _RsvStation
 	eFunctionOp		type;
 	CHAR			name[10];
 	BOOL			busy;
+	BOOL			isInstInFuncUnit;
 	PInstCtx		pInstruction;
 	float			Address;		//for store operations / memory buffer usage
 
