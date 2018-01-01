@@ -26,7 +26,7 @@ FILE* tracedb = NULL;
 PInstCtx	instrctionByIssue[MEMORY_SIZE];
 UINT32		issueCtr = 0;
 
-CPCHAR		CDBnames[4] = { "ADD", "MUL", "DIV", "MEM" };
+CPCHAR		CDBnames[NUM_CDBS] = { "ADD", "MUL", "DIV", "MEM" };
 
 static VOID FilesManager_GetLine(FILE* file, PCHAR line)
 {
@@ -289,7 +289,7 @@ STATUS FilesManager_WriteTracedb(pCDB CDBs, UINT32 CC)
 			break;
 		}
 
-		for (index = 0; index < 4; index++)
+		for (index = 0; index < NUM_CDBS; index++)
 		{
 			if (CDBs[index].tag != NULL)
 			{

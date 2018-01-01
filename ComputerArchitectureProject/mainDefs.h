@@ -11,6 +11,7 @@
 #define TRUE			1
 #define FALSE			0
 #define NUM_REGS		16
+#define NUM_CDBS		4
 #define INSTRUCTION_QUEUE_LEN	16
 
 #define Hex2Float(x)			*((float*)&(x));	
@@ -87,7 +88,7 @@ typedef struct _FunctionUnit
 	eFunctionOp		type;
 	BOOL			busy;
 	UINT32			delay;
-
+	CHAR			name[10];
 	PInstCtx		pInstruction;
 	UINT32			clockCycleCounter;
 
