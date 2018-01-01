@@ -29,8 +29,6 @@ pRsvStation		DivRsvStations;
 pRsvStation		LoadBuffers;
 pRsvStation		StoreBuffers;
 
-pFunctionUnit	memoryUnit;
-
 _CDB			CDBs[NUM_CDBS];
 
 
@@ -103,10 +101,11 @@ int main(int argc, char** argv)
 		runCheckStatusBreak(FilesManager_InitializeOutputFiles, argv[3], argv[4], argv[5], argv[6]);
 
 		RsvSta_InitializeReservationsStations(&config);
+		CPU_InitializeMemoryUnit(&config);
 
 		for (index = 0; index < NUM_REGS; index++)
 		{
-			F[index].value = (float)index;
+			F[index].value = (FLOAT)index;
 			F[index].hasTag = FALSE;
 			F[index].tag = NULL;
 		}

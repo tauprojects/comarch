@@ -95,12 +95,6 @@ VOID RsvSta_InitializeReservationsStations(PCONFIG pConfig)
 
 	RsvSta_InitializeOneRsvStation(&StoreBuffers, pConfig->mem_nr_store_buffers, "ST",
 		0, ST, 0);
-
-	//only one memory unit
-	memoryUnit = safeCalloc(1, sizeof(FunctionUnit));
-	memoryUnit->delay = pConfig->mem_delay;
-	memoryUnit->numOfFunctionalUnitsFromThisType = 1;
-
 }
 
 VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInstQ, UINT32 CC)

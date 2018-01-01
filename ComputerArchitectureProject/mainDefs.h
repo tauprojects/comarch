@@ -21,7 +21,7 @@
 #define NUM_CDBS		4
 #define INSTRUCTION_QUEUE_LEN	16
 
-#define Hex2Float(x)			*((float*)&(x));	
+#define Hex2Float(x)			*((FLOAT*)&(x));	
 #define Float2Hex(x)			*((unsigned int*)&(x));	
 
 /**
@@ -45,6 +45,7 @@ typedef void			VOID,	*PVOID;
 typedef UINT32			BOOL,	*PBOOL;
 typedef char			CHAR,	*PCHAR,	**PPCHAR;
 typedef const char*		CPCHAR;
+typedef float			FLOAT;
 
 typedef enum _STATUS {
 	STATUS_SUCCESS,
@@ -128,9 +129,9 @@ typedef struct _FunctionUnit
 	PInstCtx		pInstruction;
 	UINT32			clockCycleCounter;
 
-	float			SRC0;
-	float			SRC1;
-	float			DST;
+	FLOAT			SRC0;
+	FLOAT			SRC1;
+	FLOAT			DST;
 
 
 } FunctionUnit, *pFunctionUnit;
@@ -146,8 +147,8 @@ typedef struct _RsvStation
 	UINT32			Address;		//for store operations / memory buffer usage
 
 	//For Reservation stations ADD,MULT,DIV
-	float			Vj;
-	float			Vk;
+	FLOAT			Vj;
+	FLOAT			Vk;
 	struct _RsvStation*		Qj;
 	struct _RsvStation*		Qk;
 
@@ -159,7 +160,7 @@ typedef struct _RsvStation
 
 typedef struct _register 
 {
-	float			value;
+	FLOAT			value;
 	BOOL			hasTag;
 
 	pRsvStation		tag;
@@ -175,7 +176,7 @@ typedef struct __cdb
 	pRsvStation tag;
 	PInstCtx	inst;
 
-	float		value;
+	FLOAT		value;
 	UINT32		CCupdated;
 } _CDB, *pCDB;
 

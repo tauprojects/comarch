@@ -11,11 +11,11 @@ extern pRsvStation		MulRsvStations;
 extern pRsvStation		DivRsvStations;
 extern pRsvStation		LoadBuffers;
 extern pRsvStation		StoreBuffers;
-extern pFunctionUnit	memoryUnit;
 
 extern UINT32			CC;
 extern _CDB				CDBs[];
 
+VOID CPU_InitializeMemoryUnit(PCONFIG pConfig);
 VOID CPU_ProcessFunctionalUnits(PBOOL pisCPUreadyForHalt);
 
 VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt);

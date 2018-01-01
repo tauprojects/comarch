@@ -3,6 +3,8 @@
 
 #include <stdlib.h>
 
+pFunctionUnit	memoryUnit;
+
 
 /************************************************************************/
 /* Internal Functions                                                   */
@@ -100,8 +102,8 @@ static VOID CPU_AddInstructionToFunctionalUnit(pFunctionUnit pCurrentFU, PBOOL p
 	{
 		pCurrentRsvSt = &rsvStationArray[k];
 
-		if (pCurrentRsvSt->busy == TRUE
-			&& pCurrentRsvSt->isInstInFuncUnit == FALSE)
+		if (pCurrentRsvSt->busy == TRUE &&
+			pCurrentRsvSt->isInstInFuncUnit == FALSE)
 		{
 
 			//don't move instruction from reservation station to functional unit in the same CC
@@ -130,7 +132,7 @@ static VOID CPU_AddInstructionToFunctionalUnit(pFunctionUnit pCurrentFU, PBOOL p
 
 				pCurrentFU->clockCycleCounter++; //this cycle counts
 
-												 // Do the actual calculation and save the result inside the functional unit
+				// Do the actual calculation and save the result inside the functional unit
 				CPU_CalculateResult(pCurrentFU);
 
 				break;
@@ -142,6 +144,22 @@ static VOID CPU_AddInstructionToFunctionalUnit(pFunctionUnit pCurrentFU, PBOOL p
 /************************************************************************/
 /* Public Functions	                                                    */
 /************************************************************************/
+
+VOID CPU_InitializeMemoryUnit(PCONFIG pConfig)
+{
+	UINT32	i;
+	UINT32	len = pConfig->mem_delay;
+
+	//Pipeline is in the length of the delay
+	memoryUnit = safeCalloc(len, sizeof(FunctionUnit));
+	memoryUnit->numOfFunctionalUnitsFromThisType = len;
+
+	for (i = 0; i < len; i++)
+	{
+		
+		memoryUnit[i].delay = pConfig->mem_delay;
+	}
+}
 
 VOID CPU_ProcessFunctionalUnits(PBOOL pisCPUreadyForHalt)
 {
@@ -177,108 +195,121 @@ VOID CPU_ProcessFunctionalUnits(PBOOL pisCPUreadyForHalt)
 
 VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 {
-	UINT32		j, k;
-	pRsvStation currentBuffer;
-	pRsvStation buffers[2] = { LoadBuffers, StoreBuffers };
-
-	if (memoryUnit->busy == TRUE)
+	UINT32			i, j, k;
+	pRsvStation		currentBuffer;
+	pRsvStation		buffers[2] = { LoadBuffers, StoreBuffers };
+	pFunctionUnit	curMemUnit;
+	BOOL			wasInstructedIssuedInThisCC = FALSE;
+	
+	for (i = 0; i < memoryUnit->numOfFunctionalUnitsFromThisType; i++)
 	{
+		curMemUnit = &memoryUnit[i];
 
-		dprintf("\nmemoryUnit is BUSY with instruction PC = %d\n", memoryUnit->pInstruction->pc);
-		*pIsCPUreadyForHalt = FALSE;
-		if (memoryUnit->clockCycleCounter == memoryUnit->delay - 1)
+		if (curMemUnit->busy == TRUE)
 		{
-			dprintf("\nmemoryUnit is finished instruction PC = %d\n", memoryUnit->pInstruction->pc);
-
-			memoryUnit->pInstruction->cycleExecutionEnd = CC;
-			//same index as the type of the functional unit,
-			//try to write to CDB
-
-			if (memoryUnit->pInstruction->opcode == ST)
+			dprintf("\nmemoryUnit[%d] is BUSY with instruction PC = %d\n", i, curMemUnit->pInstruction->pc);
+			*pIsCPUreadyForHalt = FALSE;
+			if (curMemUnit->clockCycleCounter == curMemUnit->delay - 1)
 			{
-				//actual write to memory
-				mem[memoryUnit->pInstruction->tag->Address] = Float2Hex(memoryUnit->DST);
-				dprintf("\nMemoryUnit wrote value %f <%X> to MEM[%d]\n", memoryUnit->DST, mem[memoryUnit->pInstruction->tag->Address], memoryUnit->pInstruction->tag->Address);
-			}
+				dprintf("\nmemoryUnit[%d] is finished instruction PC = %d\n", i,curMemUnit->pInstruction->pc);
 
-			if (CDBs[3].tag == NULL)
-			{
-				//if relevant CDB is empty
-				dprintf("\nMemoryUnit wrote value %f to CDB 3\n", memoryUnit->DST);
+				curMemUnit->pInstruction->cycleExecutionEnd = CC;
+				//same index as the type of the functional unit,
+				//try to write to CDB
 
-				//take tag from the instruction
-				CDBs[3].tag = memoryUnit->pInstruction->tag;
-				CDBs[3].inst = memoryUnit->pInstruction;
-				CDBs[3].value = memoryUnit->DST;
-				CDBs[3].CCupdated = CC;
-				memoryUnit->pInstruction->cycleWriteCDB = CC;
-
-				memoryUnit->pInstruction->tag->pInstruction = NULL; //clean reservation station
-				memoryUnit->pInstruction->tag->busy = FALSE;
-
-				memoryUnit->clockCycleCounter = 0;
-				memoryUnit->busy = FALSE;
-			}
-			//if CDBs[3].tag is not NULL then just wait, don't clock cycle counter
-		}
-		else
-		{
-			memoryUnit->clockCycleCounter++;
-			dprintf("\nMemoryUnit counter = %d\n", memoryUnit->clockCycleCounter);
-
-		}
-	}
-	else //memory unit is empty
-	{
-		for (j = 0; j < 2; j++)
-		{
-			currentBuffer = buffers[j];
-
-			for (k = 0; k < currentBuffer->numOfRsvStationsFromThisType; k++)
-			{
-				if (currentBuffer[k].busy == TRUE)
+				if (curMemUnit->pInstruction->opcode == ST)
 				{
-					*pIsCPUreadyForHalt = FALSE;
-					//relevant only for store, will always be NULL for load
-					if (currentBuffer[k].Qk == NULL)
-					{
-						dprintf("\nMemoryUnit taking PC %d from RsvStation %s\n", currentBuffer[k].pInstruction->pc, currentBuffer[k].pInstruction->tag->name);
-
-						//if the store value is valid
-						memoryUnit->busy = TRUE;
-
-						memoryUnit->pInstruction = currentBuffer[k].pInstruction;
-
-						memoryUnit->pInstruction->cycleExecutionStart = CC;
-						memoryUnit->clockCycleCounter++; //this cycle counts
-
-						currentBuffer[k].pInstruction = NULL;
-
-						currentBuffer[k].busy = FALSE;
-
-						switch (memoryUnit->pInstruction->opcode)
-						{
-						case LD:
-							memoryUnit->DST = Hex2Float(mem[memoryUnit->pInstruction->IMM]);
-							break;
-
-						case ST:
-							memoryUnit->DST = currentBuffer[k].Vk;
-							break;
-
-						default:
-							dprintf("WRONG INSTRUCTION\n");
-							break;
-						}
-
-						break;
-					}
+					//actual write to memory
+					mem[curMemUnit->pInstruction->tag->Address] = Float2Hex(curMemUnit->DST);
+					dprintf("\nMemoryUnit[%d] wrote value %f <%X> to MEM[%d]\n", i, curMemUnit->DST, mem[curMemUnit->pInstruction->tag->Address], curMemUnit->pInstruction->tag->Address);
 				}
 
-			}
+				if (CDBs[3].tag == NULL)
+				{
+					//if relevant CDB is empty
+					dprintf("\nMemoryUnit[%d] wrote value %f to CDB 3\n", i, curMemUnit->DST);
 
-			if (memoryUnit->busy == TRUE)
-				break; //break outer loop if instruction was already treated
+					//take tag from the instruction
+					CDBs[3].tag = curMemUnit->pInstruction->tag;
+					CDBs[3].inst = curMemUnit->pInstruction;
+					CDBs[3].value = curMemUnit->DST;
+					CDBs[3].CCupdated = CC;
+					curMemUnit->pInstruction->cycleWriteCDB = CC;
+
+					curMemUnit->pInstruction->tag->pInstruction = NULL; //clean reservation station
+					curMemUnit->pInstruction->tag->busy = FALSE;
+
+					curMemUnit->clockCycleCounter = 0;
+					curMemUnit->busy = FALSE;
+				}
+				//if CDBs[3].tag is not NULL then just wait, don't clock cycle counter
+			}
+			else
+			{
+				curMemUnit->clockCycleCounter++;
+				dprintf("\nMemoryUnit[%d] counter = %d\n", i, curMemUnit->clockCycleCounter);
+
+			}
 		}
+		else //memory unit is empty
+		{
+			for (j = 0; j < 2; j++)
+			{
+				currentBuffer = buffers[j];
+
+				for (k = 0; k < currentBuffer->numOfRsvStationsFromThisType; k++)
+				{
+					if (currentBuffer[k].busy == TRUE)
+					{
+						*pIsCPUreadyForHalt = FALSE;
+						//relevant only for store, will always be NULL for load
+						if (currentBuffer[k].Qk == NULL)
+						{
+							dprintf("\nMemoryUnit[%d] taking PC %d from RsvStation %s\n", i, currentBuffer[k].pInstruction->pc, currentBuffer[k].pInstruction->tag->name);
+
+							wasInstructedIssuedInThisCC = TRUE;
+
+							//if the store value is valid
+							curMemUnit->busy = TRUE;
+
+							curMemUnit->pInstruction = currentBuffer[k].pInstruction;
+
+							curMemUnit->pInstruction->cycleExecutionStart = CC;
+							curMemUnit->clockCycleCounter++; //this cycle counts
+
+							currentBuffer[k].pInstruction = NULL;
+
+							currentBuffer[k].busy = FALSE;
+
+							switch (curMemUnit->pInstruction->opcode)
+							{
+							case LD:
+								curMemUnit->DST = Hex2Float(mem[curMemUnit->pInstruction->IMM]);
+								break;
+
+							case ST:
+								curMemUnit->DST = currentBuffer[k].Vk;
+								break;
+
+							default:
+								dprintf("WRONG INSTRUCTION\n");
+								break;
+							}
+
+							break;
+						}
+					}
+
+				}
+
+				if (curMemUnit->busy == TRUE)
+					break; //break outer loop if instruction was already treated
+			}
+		}
+
+		if (wasInstructedIssuedInThisCC == TRUE)
+			break;		//issue only one instruction per CC
+
 	}
+	
 }

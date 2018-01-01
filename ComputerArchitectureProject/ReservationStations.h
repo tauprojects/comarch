@@ -11,8 +11,6 @@ extern pRsvStation		DivRsvStations;
 extern pRsvStation		LoadBuffers;
 extern pRsvStation		StoreBuffers;
 
-extern pFunctionUnit	memoryUnit;
-
 extern _CDB				CDBs[];
 extern Register			F[];
 
