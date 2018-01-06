@@ -264,39 +264,46 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 			{
 				dprintf("\nmemoryUnit[%d] is finished instruction PC = %d\n", i,curMemUnit->pInstruction->pc);
 
-				curMemUnit->pInstruction->cycleExecutionEnd = CC;
-
-				CPU_PassAddressToRsvSta(curMemUnit->pInstruction);
-
-				//same index as the type of the functional unit,
-				//try to write to CDB
-
-				if (curMemUnit->pInstruction->opcode == ST)
+				if (curMemUnit->pInstruction->cycleExecutionEnd == 0)
 				{
-					//actual write to memory
-					mem[curMemUnit->pInstruction->tag->Address] = Float2Hex(curMemUnit->DST);
-					dprintf("\nMemoryUnit[%d] wrote value %f <%X> to MEM[%d]\n", i, curMemUnit->DST, mem[curMemUnit->pInstruction->tag->Address], curMemUnit->pInstruction->tag->Address);
+					curMemUnit->pInstruction->cycleExecutionEnd = CC;
 				}
+				else
+				{ //it didn't end in this CC
 
-				if (CDBs[3].tag == NULL)
-				{
-					//if relevant CDB is empty
-					dprintf("\nMemoryUnit[%d] wrote value %f to CDB 3\n", i, curMemUnit->DST);
+					CPU_PassAddressToRsvSta(curMemUnit->pInstruction);
 
-					//take tag from the instruction
-					CDBs[3].tag = curMemUnit->pInstruction->tag;
-					CDBs[3].inst = curMemUnit->pInstruction;
-					CDBs[3].value = curMemUnit->DST;
-					CDBs[3].CCupdated = CC;
-					curMemUnit->pInstruction->cycleWriteCDB = CC;
+					//same index as the type of the functional unit,
+					//try to write to CDB
 
-					curMemUnit->pInstruction->tag->pInstruction = NULL; //clean reservation station
-					curMemUnit->pInstruction->tag->busy = FALSE;
+					if (curMemUnit->pInstruction->opcode == ST)
+					{
+						//actual write to memory
+						mem[curMemUnit->pInstruction->tag->Address] = Float2Hex(curMemUnit->DST);
+						dprintf("\nMemoryUnit[%d] wrote value %f <%X> to MEM[%d]\n", i, curMemUnit->DST, mem[curMemUnit->pInstruction->tag->Address], curMemUnit->pInstruction->tag->Address);
+					}
 
-					curMemUnit->clockCycleCounter = 0;
-					curMemUnit->busy = FALSE;
+					if (CDBs[3].tag == NULL)
+					{
+						//if relevant CDB is empty
+						dprintf("\nMemoryUnit[%d] wrote value %f to CDB 3\n", i, curMemUnit->DST);
+
+						//take tag from the instruction
+						CDBs[3].tag = curMemUnit->pInstruction->tag;
+						CDBs[3].inst = curMemUnit->pInstruction;
+						CDBs[3].value = curMemUnit->DST;
+						CDBs[3].CCupdated = CC;
+						curMemUnit->pInstruction->cycleWriteCDB = CC;
+
+						curMemUnit->pInstruction->tag->pInstruction = NULL; //clean reservation station
+						curMemUnit->pInstruction->tag->busy = FALSE;
+
+						curMemUnit->clockCycleCounter = 0;
+						curMemUnit->busy = FALSE;
+					}
+					//if CDBs[3].tag is not NULL then just wait, don't clock cycle counter
+
 				}
-				//if CDBs[3].tag is not NULL then just wait, don't clock cycle counter
 			}
 			else
 			{
@@ -317,6 +324,11 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 						currentBuffer[k].isInstInFuncUnit == FALSE &&
 						CPU_CheckIfAddressInRsvSta(&currentBuffer[k]) == FALSE)
 					{
+
+						//don't move instruction from reservation station to memory unit in the same CC
+						if (currentBuffer[k].pInstruction->cycleIssued == CC)
+							continue;
+
 						*pIsCPUreadyForHalt = FALSE;
 						//relevant only for store, will always be NULL for load
 						if (currentBuffer[k].Qk == NULL)
