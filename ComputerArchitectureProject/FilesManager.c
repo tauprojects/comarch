@@ -30,12 +30,12 @@ CPCHAR		CDBnames[NUM_CDBS] = { "ADD", "MUL", "DIV", "MEM" };
 
 static VOID FilesManager_GetLine(FILE* file, PCHAR line)
 {
-	char	ch;
+	int		ch;
 	int		chInd = 0;
 
 	while ((ch = fgetc(file)) != EOF)
 	{
-		line[chInd++] = ch;
+		line[chInd++] = (char)ch;
 		if (ch == '\n')
 			break;
 	}
@@ -78,7 +78,7 @@ STATUS FilesManager_MeminParser(UINT32* memin, CPCHAR filename)
 			if (line[0] && line[0] != '\n')
 			{
 
-				temp = (UINT32)strtol(line, &endPtr, 16);
+				temp = (UINT32)strtoul(line, &endPtr, 16);
 				if (endPtr == line || *endPtr != '\0')
 				{
 					status = STATUS_STRTOL_FAIL;
@@ -246,7 +246,6 @@ STATUS FilesManager_WriteMemout(UINT32* mem)
 STATUS FilesManager_WriteTraceinst(VOID)
 {
 	STATUS	status = STATUS_SUCCESS;
-	UINT32	index;
 	do
 	{
 		if (!traceinst)
@@ -254,7 +253,7 @@ STATUS FilesManager_WriteTraceinst(VOID)
 			status = STATUS_FILE_FAIL;
 			break;
 		}
-		for (int i = 0; i < issueCtr; i++)
+		for (UINT32 i = 0; i < issueCtr; i++)
 		{
 			fprintf(traceinst, "%08x %d %s %d %d %d %d\n",
 				instrctionByIssue[i]->inst,

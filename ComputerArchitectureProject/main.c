@@ -80,7 +80,8 @@ int main(int argc, char** argv)
 
 	STATUS			status = STATUS_SUCCESS;
 	CONFIG			config = { 0 };
-	BOOL			wasHalt = FALSE;
+	BOOL			wasHaltIssued = FALSE;
+	BOOL			wasHaltFetched = FALSE;
 	BOOL			isCPUreadyForHalt = TRUE;
 	UINT32			index;
 
@@ -121,9 +122,9 @@ int main(int argc, char** argv)
 			 * Fetch up to two instructions and add them to the instructions queue
 			 * if there's room.
 			 */
-			if (wasHalt == FALSE)
+			if (wasHaltFetched == FALSE) //no reason to fetch more instructions after halt
 			{
-				Instructions_FetchTwoInstructions(pInstQ, mem, &PC);
+				Instructions_FetchTwoInstructions(pInstQ, &wasHaltFetched, mem, &PC);
 
 				//if the first CC, cannot do anything yet because fetch takes full CC
 				if (CC == 0)
@@ -131,9 +132,12 @@ int main(int argc, char** argv)
 					CC++;
 					continue;
 				}
+			}
 
+			if (wasHaltIssued == FALSE)
+			{ 
 				/* Issue to reservation stations */
-				RsvSta_IssueInstToRsvStations(&config, &wasHalt, pInstQ, CC);
+				RsvSta_IssueInstToRsvStations(&config, &wasHaltIssued, pInstQ, CC);
 			}
 
 			/* Process Functional Units */
@@ -145,8 +149,6 @@ int main(int argc, char** argv)
 			/* Check if there's values ready on the CDB for any reservation station */
 			RsvSta_CheckIfRsvStationCanGetDataFromCDB(&isCPUreadyForHalt,&config);
 
-			/* MEMORY UNIT SHOULD PE PIPELINED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!*/
-
 			CPU_WriteResultToRegister(&isCPUreadyForHalt);
 			
 			FilesManager_WriteTracedb(CDBs, CC);
@@ -154,7 +156,7 @@ int main(int argc, char** argv)
 			//Clear CDBs every CC because all needed was passed either to reservation station or register
 			memset(CDBs, 0, sizeof(CDBs));
 
-			if (wasHalt == TRUE && isCPUreadyForHalt == TRUE)
+			if (wasHaltIssued == TRUE && isCPUreadyForHalt == TRUE)
 			{
 				dprintf("\nHALT detected, BREAKING!!\n");
 				break;
@@ -162,7 +164,7 @@ int main(int argc, char** argv)
 
 			CC++;
 		}
-
+		printf("\nProgram finished CC = %d || PC = %d\n", CC, PC);
 		printf("\n\nFinal Register Values:\n^^^^^^^^^^^^^^^^^^^^^^\n\n");
 		for (index = 0; index < NUM_REGS; index++)
 			printf("F[%d] = %f\n", index, F[index].value);

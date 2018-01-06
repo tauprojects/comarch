@@ -1,6 +1,6 @@
 
 #include "FunctionalUnits.h"
-
+#include <stdio.h>
 #include <stdlib.h>
 
 pFunctionUnit	memoryUnit;
@@ -141,6 +141,57 @@ static VOID CPU_AddInstructionToFunctionalUnit(pFunctionUnit pCurrentFU, PBOOL p
 	}
 }
 
+
+static BOOL CPU_CheckIfAddressInRsvSta(pRsvStation currentRsvSta)
+{
+	pRsvStation buffers[2] = { LoadBuffers, StoreBuffers };
+	UINT32		j, k;
+	BOOL		found = FALSE;
+
+	for (j = 0; j < 2; j++)
+	{
+		for (k = 0; k < buffers[j]->numOfRsvStationsFromThisType; k++)
+		{
+			if (&buffers[j][k] != currentRsvSta &&
+				buffers[j][k].busy == TRUE &&
+				currentRsvSta->pInstruction->IMM == buffers[j][k].Address &&
+				currentRsvSta->pInstruction->pc > buffers[j][k].pInstruction->pc)
+			{
+				return TRUE;
+			}
+		}
+	}
+
+	return FALSE;
+}
+
+static VOID CPU_PassAddressToRsvSta(PInstCtx pCurrentInst)
+{
+	pRsvStation buffers[2] = { LoadBuffers, StoreBuffers };
+	UINT32		j, k;
+	BOOL		found = FALSE;
+
+	for (j = 0; j < 2; j++)
+	{
+		for (k = 0; k < buffers[j]->numOfRsvStationsFromThisType; k++)
+		{
+			if (&buffers[j][k] != pCurrentInst->tag &&
+				buffers[j][k].busy == TRUE &&
+				buffers[j][k].Address == 0 &&
+				buffers[j][k].isInstInFuncUnit == FALSE)
+			{
+				//another if to prevent null dereference
+				if (buffers[j][k].pInstruction->IMM == pCurrentInst->IMM &&
+					buffers[j][k].pInstruction->pc > pCurrentInst->pc)
+				{
+					buffers[j][k].Address = pCurrentInst->IMM;
+				}
+			}
+		}
+	}
+}
+
+
 /************************************************************************/
 /* Public Functions	                                                    */
 /************************************************************************/
@@ -214,6 +265,9 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 				dprintf("\nmemoryUnit[%d] is finished instruction PC = %d\n", i,curMemUnit->pInstruction->pc);
 
 				curMemUnit->pInstruction->cycleExecutionEnd = CC;
+
+				CPU_PassAddressToRsvSta(curMemUnit->pInstruction);
+
 				//same index as the type of the functional unit,
 				//try to write to CDB
 
@@ -259,7 +313,9 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 
 				for (k = 0; k < currentBuffer->numOfRsvStationsFromThisType; k++)
 				{
-					if (currentBuffer[k].busy == TRUE)
+					if (currentBuffer[k].busy == TRUE &&
+						currentBuffer[k].isInstInFuncUnit == FALSE &&
+						CPU_CheckIfAddressInRsvSta(&currentBuffer[k]) == FALSE)
 					{
 						*pIsCPUreadyForHalt = FALSE;
 						//relevant only for store, will always be NULL for load
@@ -268,7 +324,7 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 							dprintf("\nMemoryUnit[%d] taking PC %d from RsvStation %s\n", i, currentBuffer[k].pInstruction->pc, currentBuffer[k].pInstruction->tag->name);
 
 							wasInstructedIssuedInThisCC = TRUE;
-
+							currentBuffer[k].isInstInFuncUnit = TRUE;
 							//if the store value is valid
 							curMemUnit->busy = TRUE;
 
@@ -276,10 +332,6 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 
 							curMemUnit->pInstruction->cycleExecutionStart = CC;
 							curMemUnit->clockCycleCounter++; //this cycle counts
-
-							currentBuffer[k].pInstruction = NULL;
-
-							currentBuffer[k].busy = FALSE;
 
 							switch (curMemUnit->pInstruction->opcode)
 							{
@@ -301,9 +353,6 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 					}
 
 				}
-
-				if (curMemUnit->busy == TRUE)
-					break; //break outer loop if instruction was already treated
 			}
 		}
 

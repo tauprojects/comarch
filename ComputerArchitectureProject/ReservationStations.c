@@ -97,6 +97,39 @@ VOID RsvSta_InitializeReservationsStations(PCONFIG pConfig)
 		0, ST, 0);
 }
 
+static VOID RsvSta_FillInAddress(pRsvStation currentRsvSta, PInstCtx pCurrentInst)
+{
+	pRsvStation buffers[2] = { LoadBuffers, StoreBuffers };
+	UINT32		j,k;
+	BOOL		found = FALSE;
+
+	for (j = 0; j < 2; j++)
+	{
+		for (k = 0; k < buffers[j]->numOfRsvStationsFromThisType; k++)
+		{
+			if (&buffers[j][k] != currentRsvSta &&
+				buffers[j][k].busy == TRUE &&
+				pCurrentInst->IMM == buffers[j][k].pInstruction->IMM &&
+				pCurrentInst->pc > buffers[j][k].pInstruction->pc)
+			{
+				printf("\nRsvStation %s found address %d on buffer %s\n", currentRsvSta->name, pCurrentInst->IMM, buffers[j][k].name);
+				currentRsvSta->Address = 0;
+				found = TRUE;
+				break;
+			}
+		}
+		if (found == TRUE)
+		{
+			break;
+		}
+	}
+
+	if (found == FALSE)
+	{
+		currentRsvSta->Address = pCurrentInst->IMM;
+	}
+}
+
 VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInstQ, UINT32 CC)
 {
 	UINT32		index, j, numberOfRsvStations;
@@ -165,17 +198,24 @@ VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInst
 								dprintf("\n RsvStation %s Qj took tag from F[%d] = %s\n", rsvStArray[index].name, currentInst->SRC0, F[currentInst->SRC0].tag->name);
 							}
 						}
-						else
+						else //instruction is STORE
 						{
-							rsvStArray[index].Address = currentInst->IMM;
+							RsvSta_FillInAddress(&rsvStArray[index], currentInst);
 						}
 					}
+					else //instruction is LOAD
+					{
+						RsvSta_FillInAddress(&rsvStArray[index], currentInst);
+					}
 
-					F[currentInst->DST].hasTag = TRUE;
-					F[currentInst->DST].tag = &rsvStArray[index];
-					F[currentInst->DST].inst = currentInst;
-					dprintf("\nWrote tag %s to register F[%d] \n", F[currentInst->DST].tag->name, currentInst->DST);
-
+					//if instruction isn't store, add tag to register
+					if (currentInst->opcode != ST)
+					{
+						F[currentInst->DST].hasTag = TRUE;
+						F[currentInst->DST].tag = &rsvStArray[index];
+						F[currentInst->DST].inst = currentInst;
+						dprintf("\nWrote tag %s to register F[%d] \n", F[currentInst->DST].tag->name, currentInst->DST);
+					}
 
 					break;
 				}

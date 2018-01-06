@@ -67,12 +67,17 @@ void _safeFree(void* ptr, void** pPtr, const char* file, const char* func, int l
 
 void cleanMemory(void)
 {
+	int j = 0;
+	printf("\nAllocated totally %d pointers\n", arrayCounter);
 	for (int i = 0; i < arrayCounter; i++)
 	{
 		if (pointers_array[i])
 		{
+			j++;
 			free(pointers_array[i]);
 			globalMemoryCounter--;
 		}
 	}
+	printf("\nFreed totally %d unfreed pointers\n", j);
+
 }
