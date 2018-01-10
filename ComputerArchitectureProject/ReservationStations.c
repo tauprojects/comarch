@@ -97,7 +97,16 @@ VOID RsvSta_InitializeReservationsStations(PCONFIG pConfig)
 		0, ST, 0);
 }
 
-static VOID RsvSta_FillInAddress(pRsvStation currentRsvSta, PInstCtx pCurrentInst)
+/**
+ * This function prevents accessing the result of a memory instruction while it is in operation,
+	when the current instruction has the same memory address as the one in the memory buffer.
+	Namely, the 2nd instruction should wait after the first is done.
+	Example:
+
+	LD F5 40
+	ST F7 40
+ */
+static VOID RsvSta_FillInAddress(pRsvStation currentBuffer, PInstCtx pCurrentInst)
 {
 	pRsvStation buffers[2] = { LoadBuffers, StoreBuffers };
 	UINT32		j,k;
@@ -107,15 +116,19 @@ static VOID RsvSta_FillInAddress(pRsvStation currentRsvSta, PInstCtx pCurrentIns
 	{
 		for (k = 0; k < buffers[j]->numOfRsvStationsFromThisType; k++)
 		{
-			if (&buffers[j][k] != currentRsvSta &&
-				buffers[j][k].busy == TRUE &&
-				pCurrentInst->IMM == buffers[j][k].pInstruction->IMM &&
-				pCurrentInst->pc > buffers[j][k].pInstruction->pc)
+			if (&buffers[j][k] != currentBuffer &&								//not the same buffer
+				buffers[j][k].busy == TRUE)										//buffer has instruction in it
 			{
-				printf("\nRsvStation %s found address %d on buffer %s\n", currentRsvSta->name, pCurrentInst->IMM, buffers[j][k].name);
-				currentRsvSta->Address = 0;
-				found = TRUE;
-				break;
+				//another if to prevent null dereferencing of pInstruction
+				if (pCurrentInst->IMM == buffers[j][k].pInstruction->IMM &&		//both instruction has the same address (IMM)
+					pCurrentInst->pc > buffers[j][k].pInstruction->pc &&		//current instruction came after the one now in buffer, second one depends on first
+					pCurrentInst->opcode == ST && buffers[j][k].pInstruction->opcode == LD)	//wait for result only if 2nd is store and first is load
+				{
+					printf("\nRsvStation %s found address %d on buffer %s\n", currentBuffer->name, pCurrentInst->IMM, buffers[j][k].name);
+					currentBuffer->Address = 0;
+					found = TRUE;
+					break;
+				}
 			}
 		}
 		if (found == TRUE)
@@ -126,7 +139,7 @@ static VOID RsvSta_FillInAddress(pRsvStation currentRsvSta, PInstCtx pCurrentIns
 
 	if (found == FALSE)
 	{
-		currentRsvSta->Address = pCurrentInst->IMM;
+		currentBuffer->Address = pCurrentInst->IMM;
 	}
 }
 

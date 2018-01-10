@@ -5,6 +5,10 @@
 #include <errno.h>
 #include "FilesManager.h"
 
+/************************************************************************/
+/*				MACROS                                                  */
+/************************************************************************/
+
 #define FOPEN(f,n,t)		f = fopen(n,t);					\
 							if (!f)				\
 							{								\
@@ -18,28 +22,39 @@
 
 #define ASSIGN_ELIF(x)  else ASSIGN_IF(x)
 
-FILE* memout = NULL;
-FILE* regout = NULL;
-FILE* traceinst = NULL;
-FILE* tracedb = NULL;
+/************************************************************************/
+/*				GLAOBALS                                                */
+/************************************************************************/
+
+FILE*		memout = NULL;
+FILE*		regout = NULL;
+FILE*		traceinst = NULL;
+FILE*		tracedb = NULL;
 
 PInstCtx	instrctionByIssue[MEMORY_SIZE];
 UINT32		issueCtr = 0;
 
 CPCHAR		CDBnames[NUM_CDBS] = { "ADD", "MUL", "DIV", "MEM" };
 
-static VOID FilesManager_GetLine(FILE* file, PCHAR line)
+static BOOL FilesManager_GetLine(FILE* file, PCHAR line)
 {
 	int		ch;
 	int		chInd = 0;
+	BOOL	isEndOfFile = FALSE;
 
 	while ((ch = fgetc(file)) != EOF)
 	{
 		line[chInd++] = (char)ch;
-		if (ch == '\n')
+		if (ch == '\n' || ch == '\0' || ch == EOF)
 			break;
 	}
-	line[chInd - 1] = '\0';
+
+	if (ch != EOF && chInd > 0 && line[chInd - 1] == '\n')
+		line[chInd - 1] = '\0';
+	else if (ch == EOF)
+		isEndOfFile = TRUE;
+
+	return isEndOfFile;
 }
 
 STATUS FilesManager_MeminParser(UINT32* memin, CPCHAR filename)
@@ -47,7 +62,7 @@ STATUS FilesManager_MeminParser(UINT32* memin, CPCHAR filename)
 	STATUS	status = STATUS_SUCCESS;
 	FILE*	meminFile = NULL;
 	UINT32	memIndex = 0;
-	char	line[200];
+	char	line[30];
 
 	UINT32	temp;
 	char*	endPtr;
@@ -60,20 +75,16 @@ STATUS FilesManager_MeminParser(UINT32* memin, CPCHAR filename)
 			break;
 		}
 		
-		meminFile = fopen(filename,"r");
-
-		if(!meminFile)
-		{
-			printf("[fopen] failed with errno = %d", errno);
-			status = STATUS_FILE_FAIL;
-			break;
-		}
+		FOPEN(meminFile, filename, "r");
 		
 		memset(memin, 0, MEMORY_SIZE * sizeof(UINT32));
 		
 		while(!feof(meminFile) && memIndex < MEMORY_SIZE)
 		{
-			FilesManager_GetLine(meminFile, line);
+			if (FilesManager_GetLine(meminFile, line))
+			{
+				NULL;
+			}
 
 			if (line[0] && line[0] != '\n')
 			{
@@ -85,10 +96,11 @@ STATUS FilesManager_MeminParser(UINT32* memin, CPCHAR filename)
 					fclose(meminFile);
 					break;
 				}
-
+				printf("mem[%d] = %x | line = %s\n", memIndex,temp,line);
 				memin[memIndex] = temp;
 			}
 			memIndex++;
+			memset(line, 0, 30);
 		}
 		
 		fclose(meminFile);
@@ -110,13 +122,7 @@ STATUS FilesManager_ConfigParser(PCONFIG pConfig, CPCHAR filename)
 
 	do {
 
-		configFile = fopen(filename,"r");
-
-		if(!configFile)
-		{
-			status = STATUS_FILE_FAIL;
-			break;
-		}
+		FOPEN(configFile, filename, "r");
 
 		while(!feof(configFile))
 		{
@@ -130,7 +136,7 @@ STATUS FilesManager_ConfigParser(PCONFIG pConfig, CPCHAR filename)
 			if(ret == EOF || ret != 2)
 			{
 				status = STATUS_PARSE_FAIL;
-				fclose(configFile);
+				FCLOSE(configFile);
 				break;
 			}
 
@@ -149,13 +155,13 @@ STATUS FilesManager_ConfigParser(PCONFIG pConfig, CPCHAR filename)
 			else
 			{
 				status = STATUS_WRONG_NAME_FAIL;
-				fclose(configFile);
+				FCLOSE(configFile);
 				break;
 			}
 
 		}
 
-	fclose(configFile);
+	FCLOSE(configFile);
 		
 	} while(FALSE);
 

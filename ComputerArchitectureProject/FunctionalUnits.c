@@ -155,8 +155,12 @@ static BOOL CPU_CheckIfAddressInRsvSta(pRsvStation currentRsvSta)
 			if (&buffers[j][k] != currentRsvSta &&
 				buffers[j][k].busy == TRUE &&
 				currentRsvSta->pInstruction->IMM == buffers[j][k].Address &&
-				currentRsvSta->pInstruction->pc > buffers[j][k].pInstruction->pc)
+				currentRsvSta->pInstruction->pc > buffers[j][k].pInstruction->pc &&
+				((currentRsvSta->pInstruction->opcode == ST && buffers[j][k].pInstruction->opcode == LD) ||
+					buffers[j][k].isInstInFuncUnit == FALSE)
+				)
 			{
+				printf("\n** buffer %s found address <%d> in RsvSta %s, WAITING\n", currentRsvSta->name, buffers[j][k].Address, buffers[j][k].name);
 				return TRUE;
 			}
 		}
@@ -180,7 +184,7 @@ static VOID CPU_PassAddressToRsvSta(PInstCtx pCurrentInst)
 				buffers[j][k].Address == 0 &&
 				buffers[j][k].isInstInFuncUnit == FALSE)
 			{
-				//another if to prevent null dereference
+				//another if to prevent null dereference if pInstruction is NULL
 				if (buffers[j][k].pInstruction->IMM == pCurrentInst->IMM &&
 					buffers[j][k].pInstruction->pc > pCurrentInst->pc)
 				{
@@ -264,48 +268,73 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 			{
 				dprintf("\nmemoryUnit[%d] is finished instruction PC = %d\n", i,curMemUnit->pInstruction->pc);
 
+
+				if (curMemUnit->pInstruction->opcode == ST)
+				{
+					//actual write to memory, in the last CC of operation
+					mem[curMemUnit->pInstruction->tag->Address] = Float2Hex(curMemUnit->DST);
+					dprintf("\nMemoryUnit[%d] wrote value %f <%X> to MEM[%d]\n", i, curMemUnit->DST, mem[curMemUnit->pInstruction->tag->Address], curMemUnit->pInstruction->tag->Address);
+				}
+				else // Load instruction
+				{
+					//actual load from memory, in the last CC of operation
+					curMemUnit->DST = Hex2Float(mem[curMemUnit->pInstruction->tag->Address]);
+					dprintf("\nMemoryUnit[%d] read value %f <%X> from MEM[%d]\n", i, curMemUnit->DST, mem[curMemUnit->pInstruction->tag->Address], curMemUnit->pInstruction->tag->Address);
+				}
+
+
 				if (curMemUnit->pInstruction->cycleExecutionEnd == 0)
 				{
 					curMemUnit->pInstruction->cycleExecutionEnd = CC;
 				}
-				else
-				{ //it didn't end in this CC
+				else //it didn't end in this CC
+				{ 
 
 					CPU_PassAddressToRsvSta(curMemUnit->pInstruction);
 
 					//same index as the type of the functional unit,
 					//try to write to CDB
-
+					
 					if (curMemUnit->pInstruction->opcode == ST)
 					{
-						//actual write to memory
-						mem[curMemUnit->pInstruction->tag->Address] = Float2Hex(curMemUnit->DST);
-						dprintf("\nMemoryUnit[%d] wrote value %f <%X> to MEM[%d]\n", i, curMemUnit->DST, mem[curMemUnit->pInstruction->tag->Address], curMemUnit->pInstruction->tag->Address);
-					}
-
-					if (CDBs[3].tag == NULL)
-					{
-						//if relevant CDB is empty
-						dprintf("\nMemoryUnit[%d] wrote value %f to CDB 3\n", i, curMemUnit->DST);
-
-						//take tag from the instruction
-						CDBs[3].tag = curMemUnit->pInstruction->tag;
-						CDBs[3].inst = curMemUnit->pInstruction;
-						CDBs[3].value = curMemUnit->DST;
-						CDBs[3].CCupdated = CC;
-						curMemUnit->pInstruction->cycleWriteCDB = CC;
+						curMemUnit->pInstruction->cycleWriteCDB = -1;
 
 						curMemUnit->pInstruction->tag->pInstruction = NULL; //clean reservation station
 						curMemUnit->pInstruction->tag->busy = FALSE;
-
 						curMemUnit->clockCycleCounter = 0;
 						curMemUnit->busy = FALSE;
+				
 					}
-					//if CDBs[3].tag is not NULL then just wait, don't clock cycle counter
+					else // Load instruction
+					{
+						if (CDBs[3].tag == NULL)
+						{
+							//if relevant CDB is empty
+							dprintf("\nMemoryUnit[%d] wrote value %f to CDB 3\n", i, curMemUnit->DST);
+
+							//take tag from the instruction
+							CDBs[3].tag = curMemUnit->pInstruction->tag;
+							CDBs[3].inst = curMemUnit->pInstruction;
+							CDBs[3].value = curMemUnit->DST;
+							CDBs[3].CCupdated = CC;
+							curMemUnit->pInstruction->cycleWriteCDB = CC;
+
+							curMemUnit->pInstruction->tag->pInstruction = NULL; //clean reservation station
+							curMemUnit->pInstruction->tag->busy = FALSE;
+							curMemUnit->clockCycleCounter = 0;
+							curMemUnit->busy = FALSE;
+
+						}
+						//if CDBs[3].tag is not NULL then just wait, don't clock cycle counter
+					}
+
+					//Clear memoryUnit
+
+
 
 				}
 			}
-			else
+			else //memory unit hasn't finished
 			{
 				curMemUnit->clockCycleCounter++;
 				dprintf("\nMemoryUnit[%d] counter = %d\n", i, curMemUnit->clockCycleCounter);
@@ -348,7 +377,6 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 							switch (curMemUnit->pInstruction->opcode)
 							{
 							case LD:
-								curMemUnit->DST = Hex2Float(mem[curMemUnit->pInstruction->IMM]);
 								break;
 
 							case ST:
@@ -363,13 +391,18 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 							break;
 						}
 					}
-
+					
+					if (wasInstructedIssuedInThisCC == TRUE)
+						break;		//issue only one instruction per CC
 				}
+				
+				if (wasInstructedIssuedInThisCC == TRUE)
+					break;		//issue only one instruction per CC			
 			}
 		}
 
 		if (wasInstructedIssuedInThisCC == TRUE)
-			break;		//issue only one instruction per CC
+			break;		//issue only one instruction per CC		
 
 	}
 	
