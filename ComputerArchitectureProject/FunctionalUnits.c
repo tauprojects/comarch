@@ -160,7 +160,7 @@ static BOOL CPU_CheckIfAddressInRsvSta(pRsvStation currentRsvSta)
 					buffers[j][k].isInstInFuncUnit == FALSE)
 				)
 			{
-				printf("\n** buffer %s found address <%d> in RsvSta %s, WAITING\n", currentRsvSta->name, buffers[j][k].Address, buffers[j][k].name);
+				dprintf("\n** buffer %s found address <%d> in RsvSta %s, WAITING\n", currentRsvSta->name, buffers[j][k].Address, buffers[j][k].name);
 				return TRUE;
 			}
 		}
@@ -341,7 +341,7 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 
 			}
 		}
-		else //memory unit is empty
+		else if(wasInstructedIssuedInThisCC == FALSE)//memory unit is empty but no instruction issued already
 		{
 			for (j = 0; j < 2; j++)
 			{
@@ -397,13 +397,9 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 				}
 				
 				if (wasInstructedIssuedInThisCC == TRUE)
-					break;		//issue only one instruction per CC			
+					break;		//issue only one instruction per CC		
+				//don't break outer loop because other instruction may still need CC++
 			}
 		}
-
-		if (wasInstructedIssuedInThisCC == TRUE)
-			break;		//issue only one instruction per CC		
-
 	}
-	
 }

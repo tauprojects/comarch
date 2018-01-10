@@ -3,7 +3,7 @@
 
 #include "safeMalloc.h"
 
-#define breakpoint			printf("## BREAKPOINT: %s | %d\n",__FUNCTION__,__LINE__)
+#define breakpoint			dprintf("## BREAKPOINT: %s | %d\n",__FUNCTION__,__LINE__)
 
 #define DEBUG 1
 

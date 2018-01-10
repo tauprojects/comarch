@@ -124,7 +124,7 @@ static VOID RsvSta_FillInAddress(pRsvStation currentBuffer, PInstCtx pCurrentIns
 					pCurrentInst->pc > buffers[j][k].pInstruction->pc &&		//current instruction came after the one now in buffer, second one depends on first
 					pCurrentInst->opcode == ST && buffers[j][k].pInstruction->opcode == LD)	//wait for result only if 2nd is store and first is load
 				{
-					printf("\nRsvStation %s found address %d on buffer %s\n", currentBuffer->name, pCurrentInst->IMM, buffers[j][k].name);
+					dprintf("\nRsvStation %s found address %d on buffer %s\n", currentBuffer->name, pCurrentInst->IMM, buffers[j][k].name);
 					currentBuffer->Address = 0;
 					found = TRUE;
 					break;

@@ -96,7 +96,7 @@ STATUS FilesManager_MeminParser(UINT32* memin, CPCHAR filename)
 					fclose(meminFile);
 					break;
 				}
-				printf("mem[%d] = %x | line = %s\n", memIndex,temp,line);
+				dprintf("mem[%d] = %x | line = %s\n", memIndex,temp,line);
 				memin[memIndex] = temp;
 			}
 			memIndex++;
