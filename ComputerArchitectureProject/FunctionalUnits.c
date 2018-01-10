@@ -10,6 +10,24 @@ pFunctionUnit	memoryUnit;
 /* Internal Functions                                                   */
 /************************************************************************/
 
+static VOID CPU_CleanFU(pFunctionUnit fu)
+{
+	if (fu)
+	{
+		if (fu->pInstruction)
+		{
+			if (fu->pInstruction->tag)
+			{
+				fu->pInstruction->tag->pInstruction = NULL; //clean reservation station
+				fu->pInstruction->tag->busy = FALSE;
+			}
+		}
+
+		fu->clockCycleCounter = 0;
+		fu->busy = FALSE;
+	}
+}
+
 static VOID CPU_ProcessInstructionInFunctionalUnit(pFunctionUnit pCurrentFU, UINT32 j)
 {
 	// if the functional unit finished working on the instruction
@@ -40,11 +58,7 @@ static VOID CPU_ProcessInstructionInFunctionalUnit(pFunctionUnit pCurrentFU, UIN
 				CDBs[j].CCupdated = CC;
 				pCurrentFU->pInstruction->cycleWriteCDB = CC;
 
-				pCurrentFU->pInstruction->tag->pInstruction = NULL; //clean reservation station
-				pCurrentFU->pInstruction->tag->busy = FALSE;
-
-				pCurrentFU->clockCycleCounter = 0;
-				pCurrentFU->busy = FALSE;
+				CPU_CleanFU(pCurrentFU);
 			}
 
 		}
@@ -196,6 +210,8 @@ static VOID CPU_PassAddressToRsvSta(PInstCtx pCurrentInst)
 }
 
 
+
+
 /************************************************************************/
 /* Public Functions	                                                    */
 /************************************************************************/
@@ -299,11 +315,7 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 					{
 						curMemUnit->pInstruction->cycleWriteCDB = -1;
 
-						curMemUnit->pInstruction->tag->pInstruction = NULL; //clean reservation station
-						curMemUnit->pInstruction->tag->busy = FALSE;
-						curMemUnit->clockCycleCounter = 0;
-						curMemUnit->busy = FALSE;
-				
+						CPU_CleanFU(curMemUnit);				
 					}
 					else // Load instruction
 					{
@@ -319,10 +331,7 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 							CDBs[3].CCupdated = CC;
 							curMemUnit->pInstruction->cycleWriteCDB = CC;
 
-							curMemUnit->pInstruction->tag->pInstruction = NULL; //clean reservation station
-							curMemUnit->pInstruction->tag->busy = FALSE;
-							curMemUnit->clockCycleCounter = 0;
-							curMemUnit->busy = FALSE;
+							CPU_CleanFU(curMemUnit);
 
 						}
 						//if CDBs[3].tag is not NULL then just wait, don't clock cycle counter

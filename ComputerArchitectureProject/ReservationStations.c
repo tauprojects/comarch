@@ -72,44 +72,19 @@ static UINT32 RsvSta_OpcodeToNumberOfRsvStations(eInstType opcode, PCONFIG confi
 	return ret;
 }
 
-/************************************************************************/
-/* Public Functions	                                                    */
-/************************************************************************/
-
-
-VOID RsvSta_InitializeReservationsStations(PCONFIG pConfig)
-{
-	RsvSta_InitializeOneRsvStation(&AddRsvStations, pConfig->add_nr_reservation, "ADD",
-		pConfig->add_nr_units, ADD, pConfig->add_delay);
-
-	reservationStations[SUB] = AddRsvStations;	//so SUB instructions would go to ADD rsv stations also
-
-	RsvSta_InitializeOneRsvStation(&MulRsvStations, pConfig->mul_nr_reservation, "MUL",
-		pConfig->mul_nr_units, MULT, pConfig->mul_delay);
-
-	RsvSta_InitializeOneRsvStation(&DivRsvStations, pConfig->div_nr_reservation, "DIV",
-		pConfig->div_nr_units, DIV, pConfig->div_delay);
-
-	RsvSta_InitializeOneRsvStation(&LoadBuffers, pConfig->mem_nr_load_buffers, "LD",
-		0, LD, 0);
-
-	RsvSta_InitializeOneRsvStation(&StoreBuffers, pConfig->mem_nr_store_buffers, "ST",
-		0, ST, 0);
-}
-
 /**
- * This function prevents accessing the result of a memory instruction while it is in operation,
-	when the current instruction has the same memory address as the one in the memory buffer.
-	Namely, the 2nd instruction should wait after the first is done.
-	Example:
+* This function prevents accessing the result of a memory instruction while it is in operation,
+when the current instruction has the same memory address as the one in the memory buffer.
+Namely, the 2nd instruction should wait after the first is done.
+Example:
 
-	LD F5 40
-	ST F7 40
- */
+LD F5 40
+ST F7 40
+*/
 static VOID RsvSta_FillInAddress(pRsvStation currentBuffer, PInstCtx pCurrentInst)
 {
 	pRsvStation buffers[2] = { LoadBuffers, StoreBuffers };
-	UINT32		j,k;
+	UINT32		j, k;
 	BOOL		found = FALSE;
 
 	for (j = 0; j < 2; j++)
@@ -141,6 +116,31 @@ static VOID RsvSta_FillInAddress(pRsvStation currentBuffer, PInstCtx pCurrentIns
 	{
 		currentBuffer->Address = pCurrentInst->IMM;
 	}
+}
+
+/************************************************************************/
+/* Public Functions	                                                    */
+/************************************************************************/
+
+
+VOID RsvSta_InitializeReservationsStations(PCONFIG pConfig)
+{
+	RsvSta_InitializeOneRsvStation(&AddRsvStations, pConfig->add_nr_reservation, "ADD",
+		pConfig->add_nr_units, ADD, pConfig->add_delay);
+
+	reservationStations[SUB] = AddRsvStations;	//so SUB instructions would go to ADD rsv stations also
+
+	RsvSta_InitializeOneRsvStation(&MulRsvStations, pConfig->mul_nr_reservation, "MUL",
+		pConfig->mul_nr_units, MULT, pConfig->mul_delay);
+
+	RsvSta_InitializeOneRsvStation(&DivRsvStations, pConfig->div_nr_reservation, "DIV",
+		pConfig->div_nr_units, DIV, pConfig->div_delay);
+
+	RsvSta_InitializeOneRsvStation(&LoadBuffers, pConfig->mem_nr_load_buffers, "LD",
+		0, LD, 0);
+
+	RsvSta_InitializeOneRsvStation(&StoreBuffers, pConfig->mem_nr_store_buffers, "ST",
+		0, ST, 0);
 }
 
 VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInstQ, UINT32 CC)
