@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "Queue.h"
 
+
 STATUS	Queue_Create(PQUEUE* ppQueue, UINT32 capacity)
 {
 	STATUS status = STATUS_SUCCESS;
@@ -53,6 +54,7 @@ STATUS	Queue_Destroy(PQUEUE pQueue)
 		{
 			next = cur->next;
 
+			//clear instruction context if its not NULL
 			if (cur->pInstCtx)
 				safeFree(cur->pInstCtx);
 
@@ -120,7 +122,7 @@ STATUS	Queue_IsFull(PQUEUE pQueue, PBOOL pbIsFull)
 
 	do
 	{
-		if (!pQueue)
+		if (!pQueue || !pbIsFull)
 		{
 			status = STATUS_INVALID_ARGS;
 			break;
@@ -164,7 +166,6 @@ STATUS	Queue_Peek(PQUEUE pQueue, PPInstCtx ppInstCtx)
 	return status;
 }
 
-//Need to free instructions from queue afterwards
 STATUS	Queue_Dequeue(PQUEUE pQueue, PPInstCtx ppInstCtx)
 {
 	STATUS 	status = STATUS_SUCCESS;
@@ -190,38 +191,3 @@ STATUS	Queue_Dequeue(PQUEUE pQueue, PPInstCtx ppInstCtx)
 	return status;
 }
 
-VOID Queue_Print(PQUEUE pQueue)
-{
-	INT32 index = 0;
-	PNODE cur = NULL;
-
-	do
-	{ /*
-		if(!pQueue)
-		{
-			printf("[Queue]: pQueue is NULL\n");
-			break;
-		}
-
-		printf("Queue - Capacity <%d>\n",pQueue->capacity);
-
-		if(pQueue->size == 0)
-		{
-			printf("\tQueue is EMPTY\n");
-			break;
-		}
-		
-		cur = pQueue->head;
-
-		while(cur)
-		{
-			printf("\t%d. (%d, %08x)\n",index,cur->data1,cur->data2);
-			index++;
-			cur = cur->next;
-		}
-		printf("Size: %d",pQueue->size);
-		printf("\nHead: (%d, %08x)\n",pQueue->head->data1,pQueue->head->data2);
-		printf("Tail: (%d, %08x)\n",pQueue->tail->data1,pQueue->tail->data2);
-
-	*/} while(FALSE);
-}

@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/* GLOBAL OF memory Unit */
 pFunctionUnit	memoryUnit;
 
 
@@ -10,6 +11,9 @@ pFunctionUnit	memoryUnit;
 /* Internal Functions                                                   */
 /************************************************************************/
 
+/**
+ * This function cleans a functional unit, and zeroes the counter.
+ */
 static VOID CPU_CleanFU(pFunctionUnit fu)
 {
 	if (fu)
@@ -18,7 +22,7 @@ static VOID CPU_CleanFU(pFunctionUnit fu)
 		{
 			if (fu->pInstruction->tag)
 			{
-				fu->pInstruction->tag->pInstruction = NULL; //clean reservation station
+				fu->pInstruction->tag->pInstruction = NULL; 
 				fu->pInstruction->tag->busy = FALSE;
 			}
 		}
@@ -28,7 +32,12 @@ static VOID CPU_CleanFU(pFunctionUnit fu)
 	}
 }
 
-static VOID CPU_ProcessInstructionInFunctionalUnit(pFunctionUnit pCurrentFU, UINT32 j)
+/**
+ * This function processes an instruction in the functional unit.
+ * If the delay has not ended, it increments the counter, 
+ * If it has ended it tries to broadcast it to a CDB.
+ */
+static VOID CPU_ProcessInstructionInFunctionalUnit(pFunctionUnit pCurrentFU, UINT32 FUtype)
 {
 	// if the functional unit finished working on the instruction
 	// delay-1 because the 0 CC in the count counts also
@@ -41,21 +50,20 @@ static VOID CPU_ProcessInstructionInFunctionalUnit(pFunctionUnit pCurrentFU, UIN
 			pCurrentFU->pInstruction->cycleExecutionEnd = CC;
 		}
 		else
-		{ //it didn't end in this CC
+		{ 
+			//it didn't end in this CC - broadcast 1 CC after finish of instruction
 
-
-		  //same index as the type of the functional unit,
-		  //try to write to CDB
-			if (CDBs[j].tag == NULL)
+			//same index as the type of the functional unit - ADD / MUL / DIV (no memory here)
+			//try to write to CDB
+			if (CDBs[FUtype].tag == NULL)
 			{
 				//if relevant CDB is empty
 				dprintf("FuncUnit %s wrote value %f to CDB %d\n", pCurrentFU->name, pCurrentFU->DST, pCurrentFU->type);
 
 				//take tag from the instruction
-				CDBs[j].tag = pCurrentFU->pInstruction->tag;
-				CDBs[j].inst = pCurrentFU->pInstruction;
-				CDBs[j].value = pCurrentFU->DST;
-				CDBs[j].CCupdated = CC;
+				CDBs[FUtype].tag = pCurrentFU->pInstruction->tag;
+				CDBs[FUtype].inst = pCurrentFU->pInstruction;
+				CDBs[FUtype].value = pCurrentFU->DST;
 				pCurrentFU->pInstruction->cycleWriteCDB = CC;
 
 				CPU_CleanFU(pCurrentFU);
@@ -67,10 +75,14 @@ static VOID CPU_ProcessInstructionInFunctionalUnit(pFunctionUnit pCurrentFU, UIN
 	else
 	{
 		pCurrentFU->clockCycleCounter++;
+
 		dprintf("\nFuncUnit %s counter = %d\n", pCurrentFU->name, pCurrentFU->clockCycleCounter);
 	}
 }
 
+/**
+ * This function does the actual value calculation based on the opcode (not memory operations).
+ */
 static VOID CPU_CalculateResult(pFunctionUnit pCurrentFU)
 {
 	switch (pCurrentFU->pInstruction->opcode)
@@ -105,6 +117,9 @@ static VOID CPU_CalculateResult(pFunctionUnit pCurrentFU)
 	}
 }
 
+/**
+ * This function moves an instruction from the reservation station to the functional unit.
+ */
 static VOID CPU_AddInstructionToFunctionalUnit(pFunctionUnit pCurrentFU, PBOOL pisCPUreadyForHalt)
 {
 	pRsvStation		rsvStationArray = reservationStations[pCurrentFU->type];
@@ -120,7 +135,7 @@ static VOID CPU_AddInstructionToFunctionalUnit(pFunctionUnit pCurrentFU, PBOOL p
 			pCurrentRsvSt->isInstInFuncUnit == FALSE)
 		{
 
-			//don't move instruction from reservation station to functional unit in the same CC
+			//don't move instruction from reservation station to functional unit in the same CC as it was issued
 			if (pCurrentRsvSt->pInstruction->cycleIssued == CC)
 				continue;
 
@@ -155,26 +170,36 @@ static VOID CPU_AddInstructionToFunctionalUnit(pFunctionUnit pCurrentFU, PBOOL p
 	}
 }
 
-
-static BOOL CPU_CheckIfAddressInRsvSta(pRsvStation currentRsvSta)
+/**
+ * This function is used for memory instructions. It checks whether all the following conditions occur:
+ * 1. currently an instruction being processes in the memory unit
+ * 2. that this instruction has the same address as in the input buffer
+ * 3. this instruction depends on the found instruction (its PC is larger)
+ * 4. Either of the following:
+ *		- The first instruction is LD and the second is ST, then we must wait for the first instruction to finish.
+ *		- The address is in the buffer, but has not yet started processing in the memory unit, so we must wait.
+ * If all the conditions follow, we know we must wait for the first instruction to finish.
+ */
+static BOOL CPU_CheckIfAddressInRsvSta(pRsvStation currentMemBuffer)
 {
 	pRsvStation buffers[2] = { LoadBuffers, StoreBuffers };
 	UINT32		j, k;
-	BOOL		found = FALSE;
 
+	//for every buffer type
 	for (j = 0; j < 2; j++)
 	{
+		//for every buffer from this type
 		for (k = 0; k < buffers[j]->numOfRsvStationsFromThisType; k++)
 		{
-			if (&buffers[j][k] != currentRsvSta &&
-				buffers[j][k].busy == TRUE &&
-				currentRsvSta->pInstruction->IMM == buffers[j][k].Address &&
-				currentRsvSta->pInstruction->pc > buffers[j][k].pInstruction->pc &&
-				((currentRsvSta->pInstruction->opcode == ST && buffers[j][k].pInstruction->opcode == LD) ||
-					buffers[j][k].isInstInFuncUnit == FALSE)
+			if (&buffers[j][k] != currentMemBuffer &&															//not the same buffer
+				buffers[j][k].busy == TRUE &&																	//buffer has instruction
+				currentMemBuffer->pInstruction->IMM == buffers[j][k].Address &&									//Address is the same 
+				currentMemBuffer->pInstruction->pc > buffers[j][k].pInstruction->pc &&							//PC of the current is bigger
+				((currentMemBuffer->pInstruction->opcode == ST && buffers[j][k].pInstruction->opcode == LD) ||	//first is LD and second is ST
+					buffers[j][k].isInstInFuncUnit == FALSE)													//instruction not in mem unit yet
 				)
 			{
-				dprintf("\n** buffer %s found address <%d> in RsvSta %s, WAITING\n", currentRsvSta->name, buffers[j][k].Address, buffers[j][k].name);
+				dprintf("\n** buffer %s found address <%d> in RsvSta %s, WAITING\n", currentMemBuffer->name, buffers[j][k].Address, buffers[j][k].name);
 				return TRUE;
 			}
 		}
@@ -183,6 +208,10 @@ static BOOL CPU_CheckIfAddressInRsvSta(pRsvStation currentRsvSta)
 	return FALSE;
 }
 
+/**
+ * This function checks if the instruction that has just finished in the memory unit can pass its address
+ * to another reservation station that is waiting for it. The conditions are inside the function notes.
+ */
 static VOID CPU_PassAddressToRsvSta(PInstCtx pCurrentInst)
 {
 	pRsvStation buffers[2] = { LoadBuffers, StoreBuffers };
@@ -193,16 +222,16 @@ static VOID CPU_PassAddressToRsvSta(PInstCtx pCurrentInst)
 	{
 		for (k = 0; k < buffers[j]->numOfRsvStationsFromThisType; k++)
 		{
-			if (&buffers[j][k] != pCurrentInst->tag &&
-				buffers[j][k].busy == TRUE &&
-				buffers[j][k].Address == 0 &&
-				buffers[j][k].isInstInFuncUnit == FALSE)
+			if (&buffers[j][k] != pCurrentInst->tag &&		//not the same buffer
+				buffers[j][k].busy == TRUE &&				//buffer has instruction
+				buffers[j][k].Address == 0 &&				//its waiting for address from somewhere else (based on #CPU_CheckIfAddressInRsvSta)
+				buffers[j][k].isInstInFuncUnit == FALSE)	//sanity check
 			{
 				//another if to prevent null dereference if pInstruction is NULL
-				if (buffers[j][k].pInstruction->IMM == pCurrentInst->IMM &&
-					buffers[j][k].pInstruction->pc > pCurrentInst->pc)
+				if (buffers[j][k].pInstruction->IMM == pCurrentInst->IMM &&			//both instruction has the same address
+					buffers[j][k].pInstruction->pc > pCurrentInst->pc)				//waiting instruction's PC is bigger (depends on first instruction)
 				{
-					buffers[j][k].Address = pCurrentInst->IMM;
+					buffers[j][k].Address = pCurrentInst->IMM;						//if so - give him the address
 				}
 			}
 		}
@@ -227,7 +256,6 @@ VOID CPU_InitializeMemoryUnit(PCONFIG pConfig)
 
 	for (i = 0; i < len; i++)
 	{
-		
 		memoryUnit[i].delay = pConfig->mem_delay;
 	}
 }
@@ -280,6 +308,8 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 		{
 			dprintf("\nmemoryUnit[%d] is BUSY with instruction PC = %d\n", i, curMemUnit->pInstruction->pc);
 			*pIsCPUreadyForHalt = FALSE;
+
+			//instruction has ended processing
 			if (curMemUnit->clockCycleCounter == curMemUnit->delay - 1)
 			{
 				dprintf("\nmemoryUnit[%d] is finished instruction PC = %d\n", i,curMemUnit->pInstruction->pc);
@@ -328,13 +358,12 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 							CDBs[3].tag = curMemUnit->pInstruction->tag;
 							CDBs[3].inst = curMemUnit->pInstruction;
 							CDBs[3].value = curMemUnit->DST;
-							CDBs[3].CCupdated = CC;
 							curMemUnit->pInstruction->cycleWriteCDB = CC;
 
 							CPU_CleanFU(curMemUnit);
 
 						}
-						//if CDBs[3].tag is not NULL then just wait, don't clock cycle counter
+						//if CDBs[3].tag is not NULL then just wait, don't increment clock cycle counter
 					}
 
 					//Clear memoryUnit
@@ -360,7 +389,7 @@ VOID CPU_ProcessMemoryUnit(PBOOL pIsCPUreadyForHalt)
 				{
 					if (currentBuffer[k].busy == TRUE &&
 						currentBuffer[k].isInstInFuncUnit == FALSE &&
-						CPU_CheckIfAddressInRsvSta(&currentBuffer[k]) == FALSE)
+						CPU_CheckIfAddressInRsvSta(&currentBuffer[k]) == FALSE)	//if its not waiting for another instruction with the same memory address
 					{
 
 						//don't move instruction from reservation station to memory unit in the same CC

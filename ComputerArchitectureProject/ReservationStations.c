@@ -9,6 +9,11 @@
 /* Internal Functions                                                   */
 /************************************************************************/
 
+/**
+ * This function initializes a reservation station array and its corresponding 
+ * functional unit from a specific type. It uses parameters from the configuration.
+ * The reservation station is allocated dynamically because its size is specified in the configuration.
+ */
 static VOID RsvSta_InitializeOneRsvStation(pRsvStation* pRsvStationsTypeArray, UINT32 nr_reservation,
 	CPCHAR name, UINT32 nr_units, eInstType type, UINT32 delay)
 {
@@ -17,16 +22,21 @@ static VOID RsvSta_InitializeOneRsvStation(pRsvStation* pRsvStationsTypeArray, U
 
 	RsvStationsTypeArray = safeCalloc(nr_reservation, sizeof(RsvStation));
 	*pRsvStationsTypeArray = RsvStationsTypeArray;
+
 	for (i = 0; i < nr_reservation; i++)
 	{
-		(RsvStationsTypeArray)[i].type = type;
+		//Save the number of reservation station in the station itself, to be accessed without the need
+		//to figure out the type of the instruction
 		RsvStationsTypeArray[i].numOfRsvStationsFromThisType = nr_reservation;
+
+		//The name will be printed as the "tag"
 		snprintf(RsvStationsTypeArray[i].name, 10, "%s%d", name, i);
 	}
 
+	//Save in reservation stations pointers
 	reservationStations[type] = RsvStationsTypeArray;
 
-	//Initialize functional unit
+	//Initialize functional unit from the same type (memory unit is initialized elsewhere)
 	if (type != LD && type != ST)
 	{
 		RsvStationsTypeArray->functionalUnits = safeCalloc(nr_units, sizeof(FunctionUnit));
@@ -41,6 +51,9 @@ static VOID RsvSta_InitializeOneRsvStation(pRsvStation* pRsvStationsTypeArray, U
 	}
 }
 
+/**
+ * This function converts an opcode to the number of reservation stations from this opcode. 
+ */
 static UINT32 RsvSta_OpcodeToNumberOfRsvStations(eInstType opcode, PCONFIG config)
 {
 	UINT32 ret;
@@ -74,12 +87,12 @@ static UINT32 RsvSta_OpcodeToNumberOfRsvStations(eInstType opcode, PCONFIG confi
 
 /**
 * This function prevents accessing the result of a memory instruction while it is in operation,
-when the current instruction has the same memory address as the one in the memory buffer.
-Namely, the 2nd instruction should wait after the first is done.
-Example:
-
-LD F5 40
-ST F7 40
+* when the current instruction has the same memory address as the one in the memory buffer.
+* Namely, the 2nd instruction should wait after the first is done.
+* Example:
+*
+* LD F5 40
+* ST F7 40
 */
 static VOID RsvSta_FillInAddress(pRsvStation currentBuffer, PInstCtx pCurrentInst)
 {
@@ -100,6 +113,8 @@ static VOID RsvSta_FillInAddress(pRsvStation currentBuffer, PInstCtx pCurrentIns
 					pCurrentInst->opcode == ST && buffers[j][k].pInstruction->opcode == LD)	//wait for result only if 2nd is store and first is load
 				{
 					dprintf("\nRsvStation %s found address %d on buffer %s\n", currentBuffer->name, pCurrentInst->IMM, buffers[j][k].name);
+
+					//zero the address parameter - checked later to indicate this
 					currentBuffer->Address = 0;
 					found = TRUE;
 					break;
@@ -108,12 +123,14 @@ static VOID RsvSta_FillInAddress(pRsvStation currentBuffer, PInstCtx pCurrentIns
 		}
 		if (found == TRUE)
 		{
+			//break outer loop
 			break;
 		}
 	}
 
 	if (found == FALSE)
 	{
+		//if not found, then the address is simply the immediate
 		currentBuffer->Address = pCurrentInst->IMM;
 	}
 }
@@ -121,7 +138,6 @@ static VOID RsvSta_FillInAddress(pRsvStation currentBuffer, PInstCtx pCurrentIns
 /************************************************************************/
 /* Public Functions	                                                    */
 /************************************************************************/
-
 
 VOID RsvSta_InitializeReservationsStations(PCONFIG pConfig)
 {
@@ -143,25 +159,29 @@ VOID RsvSta_InitializeReservationsStations(PCONFIG pConfig)
 		0, ST, 0);
 }
 
-VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInstQ, UINT32 CC)
+VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHalt, PQUEUE pInstQ, UINT32 CC)
 {
 	UINT32		index, j, numberOfRsvStations;
 	BOOL		instructionIssued;
 	pRsvStation rsvStArray;
 	PInstCtx	currentInst;
 
+	//do the whole process for at most 2 instructions
 	for (j = 0; j < 2; j++)
 	{
+		//only peek at head - don't remove the instruction from the queue
 		Queue_Peek(pInstQ, &currentInst);
 
 		dprintf("\n** Working on instruction <PC=%d,OPCODE=%d>\n",
 			currentInst->pc, currentInst->opcode);
 		if (currentInst->opcode != HALT)
 		{
+			//get the corresponding reservation station from the opcode
 			rsvStArray = reservationStations[currentInst->opcode];
 			numberOfRsvStations = RsvSta_OpcodeToNumberOfRsvStations(currentInst->opcode, pConfig);
 			instructionIssued = FALSE;
 
+			//for every station from this type
 			for (index = 0; index < numberOfRsvStations; index++)
 			{
 				if (rsvStArray[index].busy == FALSE)
@@ -173,12 +193,15 @@ VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInst
 					currentInst->cycleIssued = CC;
 
 					currentInst->tag = &rsvStArray[index];
+
 					// insert instruction to reservation station
 					rsvStArray[index].pInstruction = currentInst;
 					rsvStArray[index].busy = TRUE;
 					rsvStArray[index].isInstInFuncUnit = FALSE;
 					instructionIssued = TRUE;
 
+					//Add instruction to issue array - keep track of the address pointers in the same order
+					//as they were issued.
 					FilesManager_AddToIssueArray(currentInst);
 
 					dprintf("\n** Added instruction <PC=%d,OPCODE=%d> to station %s\n",
@@ -189,6 +212,7 @@ VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInst
 
 					if (currentInst->opcode != LD)
 					{
+						//if register is currently waiting for another station
 						if (F[currentInst->SRC1].hasTag == FALSE)
 						{
 							rsvStArray[index].Vk = F[currentInst->SRC1].value;
@@ -247,10 +271,11 @@ VOID RsvSta_IssueInstToRsvStations(PCONFIG pConfig, PBOOL pWasHolt, PQUEUE pInst
 			}
 		}
 
-		else
+		else    //instruction peeked is HALT
 		{
 			dprintf("Instruction (PC = %d) is HALT\n", currentInst->pc);
-			*pWasHolt = TRUE;
+			Queue_Dequeue(pInstQ, &currentInst);
+			*pWasHalt = TRUE;
 			break;
 		}
 	}
@@ -290,15 +315,19 @@ VOID RsvSta_CheckIfRsvStationCanGetDataFromCDB(PBOOL pIsCPUreadyForHalt, PCONFIG
 
 					CDB = &CDBs[k];
 
+					//if the CDB is currently broadcasting data
 					if (CDB->tag != NULL)
 					{
+						//if its the same tag
 						if (pCurrentRsvSt->Qj == CDB->tag)
 						{
 							dprintf("\nRsvStation %s took value Vj from CDB %d for PC=%d\n", pCurrentRsvSt->name, k, pCurrentRsvSt->pInstruction->pc);
 							pCurrentRsvSt->Qj = NULL;
 							pCurrentRsvSt->Vj = CDB->value;
 						}
-						else if (pCurrentRsvSt->Qk == CDB->tag)
+						
+						//both can depend on the same value
+						if (pCurrentRsvSt->Qk == CDB->tag)
 						{
 							dprintf("\nRsvStation %s took value Vk from CDB %d for PC=%d\n", pCurrentRsvSt->name, k, pCurrentRsvSt->pInstruction->pc);
 							pCurrentRsvSt->Qk = NULL;

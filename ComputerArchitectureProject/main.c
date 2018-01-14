@@ -11,45 +11,51 @@
 /*                  Tomsulo Global Context								*/
 /************************************************************************/
 
-extern			globalMemoryCounter;
+extern			globalMemoryCounter;			//DELETE
 
-Register 		F[NUM_REGS];
-UINT32 			mem[MEMORY_SIZE];
-UINT32			PC = 0;
-UINT32			CC = 0;
-PQUEUE 			pInstQ;
+Register 		F[NUM_REGS];					//Register array
+UINT32 			mem[MEMORY_SIZE];				//Memory
+UINT32			PC = 0;							//Program Counter, initialized at 0
+UINT32			CC = 0;							//Clock cycle Counter, initialized at 0
+
+PQUEUE 			pInstQ;							//Instruction Queue
 
 /* Reservation stations */
-pRsvStation		reservationStations[FUNC_CNT];
+pRsvStation		AddRsvStations;					//ADD Reservation stations
+pRsvStation		MulRsvStations;					//MUL Reservation stations		
+pRsvStation		DivRsvStations;					//DIV Reservation stations
 
-pRsvStation		AddRsvStations;
-pRsvStation		MulRsvStations;
-pRsvStation		DivRsvStations;
+pRsvStation		LoadBuffers;					//Memory Load buffers
+pRsvStation		StoreBuffers;					//Memory Store buffers
 
-pRsvStation		LoadBuffers;
-pRsvStation		StoreBuffers;
+pRsvStation		reservationStations[FUNC_CNT];	//Array to hold reservation station for polymorphism
 
-_CDB			CDBs[NUM_CDBS];
+_CDB			CDBs[NUM_CDBS];					//CDBs Array
 
 
-/************************************************************************/
-/*                  MAIN       									        */
-/************************************************************************/
+/**
+ * This function checks all the CDBs for values matching the same tag in a register.
+ */
 
-VOID CPU_WriteResultToRegister(PBOOL pIsCPUreadyForHalt)
+static VOID CPU_WriteResultToRegister(PBOOL pIsCPUreadyForHalt)
 {
 	UINT32 index, k;
 
+	//For all registers
 	for (index = 0; index < NUM_REGS; index++)
 	{
+		//If register has tag
 		if (F[index].hasTag == TRUE)
-		{
-			
-			//breakpoint;
+		{		
 			dprintf("\nRegister F[%d] has tag %s\n", index, F[index].tag->name);
+
+			//halt only the CC after if there is halt
 			*pIsCPUreadyForHalt = FALSE;
-			for (k = 0; k < NUM_CDBS; k++) //pass on all CDB's
+
+			//Check all CDBs
+			for (k = 0; k < NUM_CDBS; k++)
 			{
+				//If CDB is currently occupied
 				if (CDBs[k].tag != NULL)
 				{
 					//tag on CDB equals tag of register
@@ -63,9 +69,10 @@ VOID CPU_WriteResultToRegister(PBOOL pIsCPUreadyForHalt)
 							F[index].value = CDBs[k].value;
 						}
 
+						//Clear tag from register, CDB clean is outside
 						F[index].hasTag = FALSE;
 
-						break; //continue outer loop
+						break; //continue outer loop to check all other registers
 					}
 				}
 			}
@@ -74,6 +81,10 @@ VOID CPU_WriteResultToRegister(PBOOL pIsCPUreadyForHalt)
 
 
 }
+
+/************************************************************************/
+/*                  MAIN       									        */
+/************************************************************************/
 
 int main(int argc, char** argv)
 {
@@ -87,7 +98,7 @@ int main(int argc, char** argv)
 
 	do
 	{
-		printf("\n--- Tomsulo Algorithm Simulator ---\n\n");
+		dprintf("\n--- Tomsulo Algorithm Simulator ---\n\n");
 
 		if (argc < 7) 
 		{
@@ -95,15 +106,22 @@ int main(int argc, char** argv)
 			break;
 		}
 
+		//Parse config file
 		runCheckStatusBreak(FilesManager_ConfigParser, &config,argv[1]);
 
+		//Parse MEMIN file
 		runCheckStatusBreak(FilesManager_MeminParser, mem, argv[2]);
-
+		
+		//Initialize / create output files
 		runCheckStatusBreak(FilesManager_InitializeOutputFiles, argv[3], argv[4], argv[5], argv[6]);
 
+		//Initialize Reservation stations and memory buffers based on config
 		RsvSta_InitializeReservationsStations(&config);
+
+		//Initialize pipeline memory unit based on config
 		CPU_InitializeMemoryUnit(&config);
 
+		//Initialize registers
 		for (index = 0; index < NUM_REGS; index++)
 		{
 			F[index].value = (FLOAT)index;
@@ -111,20 +129,22 @@ int main(int argc, char** argv)
 			F[index].tag = NULL;
 		}
 
+		//Initialize instruction queue
 		runCheckStatusBreak(Queue_Create, &pInstQ, INSTRUCTION_QUEUE_LEN);
 
 		while (TRUE)
 		{
 			dprintf("\n************************************** CC = %d ************************************\n", CC);
+
+			//Assume we are ready for halt, if not, then somewhere it will be falsed
 			isCPUreadyForHalt = TRUE;
 
-			/**
-			 * Fetch up to two instructions and add them to the instructions queue
-			 * if there's room.
-			 */
-			if (wasHaltFetched == FALSE) //no reason to fetch more instructions after halt
+			//no reason to fetch more instructions after halt was fetched, no branch
+			if (wasHaltFetched == FALSE)
 			{
-				Instructions_FetchTwoInstructions(pInstQ, &wasHaltFetched, mem, &PC);
+
+				//Fetch up to two instructions and add them to the instructions queue if there's room
+				Instructions_FetchTwoInstructions(pInstQ, &wasHaltFetched, mem);
 
 				//if the first CC, cannot do anything yet because fetch takes full CC
 				if (CC == 0)
@@ -134,28 +154,32 @@ int main(int argc, char** argv)
 				}
 			}
 
+			//if halt was issued already don't issue more instructions, wait for the current ones to end processing
 			if (wasHaltIssued == FALSE)
 			{ 
-				/* Issue to reservation stations */
+				//Issue instructions to reservation stations
 				RsvSta_IssueInstToRsvStations(&config, &wasHaltIssued, pInstQ, CC);
 			}
 
-			/* Process Functional Units */
+			//Process Functional Units
 			CPU_ProcessFunctionalUnits(&isCPUreadyForHalt);
 
-			/* Process memory unit */
+			//Process memory unit
 			CPU_ProcessMemoryUnit(&isCPUreadyForHalt);
 
-			/* Check if there's values ready on the CDB for any reservation station */
+			//Check if there's values ready on the CDB for any reservation station
 			RsvSta_CheckIfRsvStationCanGetDataFromCDB(&isCPUreadyForHalt,&config);
 
+			//Write from CDB to registers
 			CPU_WriteResultToRegister(&isCPUreadyForHalt);
 			
+			//Write TraceCDB file every CC
 			FilesManager_WriteTracedb(CDBs, CC);
 
 			//Clear CDBs every CC because all needed was passed either to reservation station or register
 			memset(CDBs, 0, sizeof(CDBs));
 
+			//If halt was issued and the CPU is ready for halt, break the loop
 			if (wasHaltIssued == TRUE && isCPUreadyForHalt == TRUE)
 			{
 				dprintf("\nHALT detected, BREAKING!!\n");
@@ -164,23 +188,35 @@ int main(int argc, char** argv)
 
 			CC++;
 		}
-		printf("\nProgram finished CC = %d || PC = %d\n", CC, PC);
-		printf("\n\nFinal Register Values:\n^^^^^^^^^^^^^^^^^^^^^^\n\n");
+
+		/************************************************************************/
+		/* DEBUG printing */
+		dprintf("\nProgram finished CC = %d || PC = %d\n", CC, PC);
+		dprintf("\n\nFinal Register Values:\n^^^^^^^^^^^^^^^^^^^^^^\n\n");
 		for (index = 0; index < NUM_REGS; index++)
-			printf("F[%d] = %f\n", index, F[index].value);
+			dprintf("F[%d] = %f\n", index, F[index].value);
+		/************************************************************************/
+
 
 	} while (FALSE);
 
+
+	//Write REGOUT file
 	FilesManager_WriteRegisters(F);
 
+	//Write MEMOUT file
 	FilesManager_WriteMemout(mem);
+
+	//Write TRACEINST file
 	FilesManager_WriteTraceinst();
 
+	//Finalize instruction queue
 	Queue_Destroy(pInstQ);
 
+	//Free all dynamically allocated memory pointers
 	cleanMemory();
 
-	printf("\n*** Memory Counter = %d\n", globalMemoryCounter);
+	dprintf("\n*** Memory Counter = %d\n", globalMemoryCounter);
 
 	return 0;
 }

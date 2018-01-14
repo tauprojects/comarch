@@ -18,7 +18,8 @@
 
 #define FCLOSE(f)			if (f) fclose(f);
 
-#define ASSIGN_IF(x)	if(!strcmp(#x,var))	{ pConfig->x = value; printf("\t%s = %d\n",#x,value); }
+//macros for cleanness of code  
+#define ASSIGN_IF(x)	if(!strcmp(#x,var))	{ pConfig->x = value; dprintf("\t%s = %d\n",#x,value); }
 
 #define ASSIGN_ELIF(x)  else ASSIGN_IF(x)
 
@@ -31,16 +32,26 @@ FILE*		regout = NULL;
 FILE*		traceinst = NULL;
 FILE*		tracedb = NULL;
 
+/* Globals holding the instructions in the same order they were issued */
 PInstCtx	instrctionByIssue[MEMORY_SIZE];
-UINT32		issueCtr = 0;
+UINT32		issueCtr = 0;	//counter for the instruction issued
 
 CPCHAR		CDBnames[NUM_CDBS] = { "ADD", "MUL", "DIV", "MEM" };
 
-static BOOL FilesManager_GetLine(FILE* file, PCHAR line)
+
+/************************************************************************/
+/*				Internal Functions                                      */
+/************************************************************************/
+
+/**
+ * This function replaces the standard #fgets because of linux/windows compatibility issues.
+ */
+static VOID FilesManager_GetLine(FILE* file, PCHAR line)
 {
 	int		ch;
 	int		chInd = 0;
-	BOOL	isEndOfFile = FALSE;
+
+	memset(line, 0, 30);
 
 	while ((ch = fgetc(file)) != EOF)
 	{
@@ -50,14 +61,14 @@ static BOOL FilesManager_GetLine(FILE* file, PCHAR line)
 	}
 
 	if (ch != EOF && chInd > 0 && line[chInd - 1] == '\n')
-		line[chInd - 1] = '\0';
-	else if (ch == EOF)
-		isEndOfFile = TRUE;
-
-	return isEndOfFile;
+		line[chInd - 1] = '\0'; //fill last char as 0
 }
 
-STATUS FilesManager_MeminParser(UINT32* memin, CPCHAR filename)
+/************************************************************************/
+/*				Public Functions                                        */
+/************************************************************************/
+
+STATUS FilesManager_MeminParser(UINT32* memory, CPCHAR filename)
 {
 	STATUS	status = STATUS_SUCCESS;
 	FILE*	meminFile = NULL;
@@ -69,47 +80,44 @@ STATUS FilesManager_MeminParser(UINT32* memin, CPCHAR filename)
 
 	do {
 
-		if(!memin)
+		if(!memory)
 		{
 			status = STATUS_INVALID_ARGS;
 			break;
 		}
 		
+		//initialize memin and memory file
 		FOPEN(meminFile, filename, "r");
 		
-		memset(memin, 0, MEMORY_SIZE * sizeof(UINT32));
+		memset(memory, 0, MEMORY_SIZE * sizeof(UINT32));
 		
-		while(!feof(meminFile) && memIndex < MEMORY_SIZE)
+		while(!feof(meminFile) && memIndex < MEMORY_SIZE)	//up to MEMORY_SIZE cells
 		{
-			if (FilesManager_GetLine(meminFile, line))
-			{
-				NULL;
-			}
+			FilesManager_GetLine(meminFile, line);
 
 			if (line[0] && line[0] != '\n')
 			{
-
-				temp = (UINT32)strtoul(line, &endPtr, 16);
+				temp = (UINT32)strtoul(line, &endPtr, 16);	//try to parse instruction
 				if (endPtr == line || *endPtr != '\0')
 				{
 					status = STATUS_STRTOL_FAIL;
 					fclose(meminFile);
 					break;
 				}
-				dprintf("mem[%d] = %x | line = %s\n", memIndex,temp,line);
-				memin[memIndex] = temp;
+
+				//store in the memory
+				memory[memIndex] = temp;
 			}
 			memIndex++;
-			memset(line, 0, 30);
 		}
 		
-		fclose(meminFile);
+		//no need for the file anymore
+		FCLOSE(meminFile);
 		
 	} while(FALSE);
 
 	return status;
 }
-
 
 STATUS FilesManager_ConfigParser(PCONFIG pConfig, CPCHAR filename)
 {
@@ -128,17 +136,24 @@ STATUS FilesManager_ConfigParser(PCONFIG pConfig, CPCHAR filename)
 		{
 			FilesManager_GetLine(configFile, line);
 
+			if (*line == 0)
+				break;
+
 			if(*line == '\n')
 				continue;
 
+			//parse line
 			ret = sscanf(line,"%s = %u",var,&value);
 			
+			//if ret != 2 it means it didn't find a struct and a number afterwards
 			if(ret == EOF || ret != 2)
 			{
 				status = STATUS_PARSE_FAIL;
 				FCLOSE(configFile);
 				break;
 			}
+
+			//Check if it is a known name and assign in the config element
 
 			ASSIGN_IF(add_nr_units)
 			ASSIGN_ELIF(mul_nr_units)
@@ -212,7 +227,6 @@ STATUS FilesManager_WriteRegisters(Register F[])
 
 		for (index = 0; index < NUM_REGS; index++)
 		{
-			//don't add newline for last line
 			fprintf(regout, "%f\n", F[index].value);
 		}
 
@@ -296,9 +310,10 @@ STATUS FilesManager_WriteTracedb(pCDB CDBs, UINT32 CC)
 
 		for (index = 0; index < NUM_CDBS; index++)
 		{
-			if (CDBs[index].tag != NULL)
+			if (CDBs[index].tag != NULL)	//CDB is not empty
 			{
 				dprintf("\nCDB <%s> has PC <%d> value <%.1f> with tag <%s>\n", CDBnames[index], CDBs[index].inst->pc, CDBs[index].value, CDBs[index].inst->tag->name);
+				
 				fprintf(tracedb, "%d %d %s %f %s\n", CC, CDBs[index].inst->pc, CDBnames[index], CDBs[index].value, CDBs[index].inst->tag->name);
 			}
 		}
