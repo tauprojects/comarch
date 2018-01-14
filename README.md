@@ -1,6 +1,4 @@
 # Computer Architecture – Tomasulo Project
-#### Almog Zeltsman: 204312763
-#### Matan Gizunterman: 303157804
 _____
 The document contains an high-level description of the way we chose to implement the tomasulo algorithm, as defined in the project assignment.
 All low-level description, include functions and macros description can be found inside the header and source files.
